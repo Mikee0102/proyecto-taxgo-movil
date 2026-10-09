@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "889076176339",
+    "project_id": "tlaxgo-e8a0d",
+    "storage_bucket": "tlaxgo-e8a0d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:889076176339:android:b5d70105fd7ea7a6d58b26",
+        "android_client_info": {
+          "package_name": "com.example.tlaxgomobil"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "889076176339-8f831m8l86bvu2pg6rfuh50678p1tatt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tlaxgomobil",
+            "certificate_hash": "ba5331a5528e8939cfeaf4cd830b9fe254415a84"
+          }
+        },
+        {
+          "client_id": "889076176339-uea5q8576v30nj7k0qm1275je71m1lj7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzG213_inhF1t2chHnXb9u9O1YAEXCnSo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "889076176339-uea5q8576v30nj7k0qm1275je71m1lj7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
