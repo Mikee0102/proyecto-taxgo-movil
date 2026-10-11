@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import '/utils/auth_errors.dart'; // 1. Importa tu módulo manejador de errores
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,7 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     if (_emailCtrl.text.isEmpty || _passCtrl.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor completa todos los campos')),
+        const SnackBar(content: Text('Campos incompletos. Por favor, llena todos los campos obligatorios.')),
       );
       return;
     }
@@ -25,13 +26,18 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
     try {
       await _authService.signInWithEmail(
-        email: _emailCtrl.text,
-        password: _passCtrl.text,
+        email: _emailCtrl.text.trim(),
+        password: _passCtrl.text.trim(),
       );
     } catch (e) {
       if (mounted) {
+        // 2. Traducimos el error técnico a un mensaje amigable en español
+        final friendlyMessage = AuthErrors.getFriendlyErrorMessage(e);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          SnackBar(
+            content: Text(friendlyMessage),
+            backgroundColor: Colors.red[700],
+          ),
         );
       }
     } finally {
@@ -45,8 +51,13 @@ class _LoginScreenState extends State<LoginScreen> {
       await _authService.signInWithGoogle();
     } catch (e) {
       if (mounted) {
+        // 3. Aplicamos el mismo manejo amigable para Google
+        final friendlyMessage = AuthErrors.getFriendlyErrorMessage(e);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error con Google: ${e.toString()}')),
+          SnackBar(
+            content: Text(friendlyMessage),
+            backgroundColor: Colors.red[700],
+          ),
         );
       }
     } finally {
