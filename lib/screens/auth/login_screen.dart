@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
-import '/utils/auth_errors.dart'; // 1. Importa tu módulo manejador de errores
+import '/utils/auth_errors.dart';
+import 'register_screen.dart'; // 1. Importa tu pantalla de registro
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -31,7 +32,6 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } catch (e) {
       if (mounted) {
-        // 2. Traducimos el error técnico a un mensaje amigable en español
         final friendlyMessage = AuthErrors.getFriendlyErrorMessage(e);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -51,7 +51,6 @@ class _LoginScreenState extends State<LoginScreen> {
       await _authService.signInWithGoogle();
     } catch (e) {
       if (mounted) {
-        // 3. Aplicamos el mismo manejo amigable para Google
         final friendlyMessage = AuthErrors.getFriendlyErrorMessage(e);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -148,6 +147,29 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
+                ),
+                const SizedBox(height: 24),
+
+                // 2. Enlace para navegar a la pantalla de Registro (HU-11)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('¿No tienes cuenta?'),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const RegisterScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        'Regístrate',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
