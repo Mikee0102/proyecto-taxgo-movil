@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "889076176339-52kvvsff6siek60guh6mkqtnaipc5k7q.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tlaxgomobil",
+            "certificate_hash": "570b56374a06fe02b2ad798461e9c2324fe890bc"
+          }
+        },
+        {
           "client_id": "889076176339-8f831m8l86bvu2pg6rfuh50678p1tatt.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
