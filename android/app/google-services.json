@@ -14,11 +14,35 @@
       },
       "oauth_client": [
         {
+          "client_id": "889076176339-52kvvsff6siek60guh6mkqtnaipc5k7q.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tlaxgomobil",
+            "certificate_hash": "570b56374a06fe02b2ad798461e9c2324fe890bc"
+          }
+        },
+        {
           "client_id": "889076176339-8f831m8l86bvu2pg6rfuh50678p1tatt.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.tlaxgomobil",
             "certificate_hash": "ba5331a5528e8939cfeaf4cd830b9fe254415a84"
+          }
+        },
+        {
+          "client_id": "889076176339-9itipnmkqmffv17urqdcrmm8g2b45nmi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tlaxgomobil",
+            "certificate_hash": "e88f8804596661f0d489827f0bf69a7161487575"
+          }
+        },
+        {
+          "client_id": "889076176339-svtgllu10smmvjscgn7ptuumbm4nn0qv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tlaxgomobil",
+            "certificate_hash": "b8817b20849ce323ed59f032f6a91bad91db526a"
           }
         },
         {

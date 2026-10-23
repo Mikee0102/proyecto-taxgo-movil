@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../models/user_model.dart';
+import '../map/map_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -36,27 +37,58 @@ class HomeScreen extends StatelessWidget {
                   radius: 46,
                   backgroundImage: profile?.avatarUrl != null
                       ? NetworkImage(profile!.avatarUrl!)
-                      : (user.photoURL != null ? NetworkImage(user.photoURL!) : null),
-                  child: (profile?.avatarUrl == null && user.photoURL == null)
+                      : (user.photoURL != null
+                          ? NetworkImage(user.photoURL!)
+                          : null),
+                  child: (profile?.avatarUrl == null &&
+                          user.photoURL == null)
                       ? const Icon(Icons.person, size: 46)
                       : null,
                 ),
+
                 const SizedBox(height: 16),
+
                 Text(
                   '¡Bienvenido, ${profile?.name ?? user.displayName ?? "Viajero"}!',
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
+
                 const SizedBox(height: 6),
+
                 Text(
                   user.email ?? '',
-                  style: const TextStyle(color: Colors.grey),
+                  style: const TextStyle(
+                    color: Colors.grey,
+                  ),
                 ),
+
                 const SizedBox(height: 12),
+
                 Chip(
-                  label: Text('Rol: ${profile?.role ?? "user"}'),
+                  label: Text(
+                    'Rol: ${profile?.role ?? "user"}',
+                  ),
                   backgroundColor: profile?.role == 'admin'
                       ? Colors.amber.shade100
                       : Colors.grey.shade200,
+                ),
+
+                const SizedBox(height: 25),
+
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MapScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.map),
+                  label: const Text('Ver mapa'),
                 ),
               ],
             ),

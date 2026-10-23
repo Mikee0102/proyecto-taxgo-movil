@@ -1,5 +1,7 @@
+
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -9,14 +11,17 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  // Clave del formulario para las validaciones del lado del cliente
   final _formKey = GlobalKey<FormState>();
+  final AuthService _authService = AuthService();
 
-  // Controladores de los campos
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _nameController =
+      TextEditingController();
+  final TextEditingController _emailController =
+      TextEditingController();
+  final TextEditingController _passwordController =
+      TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -31,62 +36,88 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  // Método de Registro con Supabase Auth (Criterios de Aceptación HU-11)
   Future<void> _registerUser() async {
-    // Bloquea el envío si el formulario no pasa las validaciones del cliente
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // Llamada a Supabase Auth para crear la cuenta y disparar el correo de verificación
-      final AuthResponse response = await Supabase.instance.client.auth.signUp(
+      await _authService.registerWithEmail(
+        name: _nameController.text.trim(),
         email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-        data: {
-          'full_name': _nameController.text.trim(), // Creación del perfil automático
-        },
+        password: _passwordController.text,
       );
 
-      if (mounted) {
-        if (response.user != null) {
-          // Éxito: Se creó la cuenta y Supabase envía el correo de verificación
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('¡Cuenta creada! Revisa tu correo para verificarla.'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 4),
-            ),
-          );
-          // Opcional: Limpiar formulario o navegar
-          _formKey.currentState!.reset();
-        }
-      }
-    } on AuthException catch (e) {
-      // Manejo de errores de Supabase (Correo ya registrado o datos inválidos)
-      String errorMessage = e.message;
-      if (e.message.toLowerCase().contains('already registered') || 
-          e.message.toLowerCase().contains('already exists')) {
-        errorMessage = 'Este correo electrónico ya está registrado.';
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('¡Cuenta creada correctamente!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 4),
+        ),
+      );
+
+      _formKey.currentState!.reset();
+      _nameController.clear();
+      _emailController.clear();
+      _passwordController.clear();
+      _confirmPasswordController.clear();
+
+    } on FirebaseAuthException catch (e) {
+      String errorMessage;
+
+      switch (e.code) {
+        case 'email-already-in-use':
+          errorMessage =
+              'Este correo electrónico ya está registrado.';
+          break;
+
+        case 'invalid-email':
+          errorMessage =
+              'Firebase indica que el correo no es válido.';
+          break;
+
+        case 'weak-password':
+          errorMessage =
+              'La contraseña debe tener al menos 6 caracteres.';
+          break;
+
+        case 'network-request-failed':
+          errorMessage =
+              'Error de conexión. Revisa tu internet.';
+          break;
+
+        case 'operation-not-allowed':
+          errorMessage =
+              'Activa el registro por correo y contraseña en Firebase.';
+          break;
+
+        default:
+          errorMessage =
+              e.message ?? 'No se pudo crear la cuenta.';
       }
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ocurrió un error inesperado: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al registrar: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -103,7 +134,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(24),
           child: Form(
             key: _formKey,
             child: Column(
@@ -111,18 +142,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
               children: [
                 const Text(
                   'Crea tu cuenta',
-                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                  ),
                   textAlign: TextAlign.center,
                 ),
+
                 const SizedBox(height: 6),
+
                 const Text(
                   'Accede a las funcionalidades personalizadas de Tlax.Go',
-                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 13,
+                  ),
                   textAlign: TextAlign.center,
                 ),
+
                 const SizedBox(height: 24),
 
-                // Nombre Completo
+                // Nombre completo
                 TextFormField(
                   controller: _nameController,
                   textCapitalization: TextCapitalization.words,
@@ -135,32 +175,55 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     if (value == null || value.trim().isEmpty) {
                       return 'Por favor ingresa tu nombre completo';
                     }
+
                     return null;
                   },
                 ),
+
                 const SizedBox(height: 16),
 
-                // Correo Electrónico Válido
+                // Correo electrónico
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
                   decoration: const InputDecoration(
                     labelText: 'Correo electrónico',
                     prefixIcon: Icon(Icons.email_outlined),
                     border: OutlineInputBorder(),
                   ),
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
+                    final email = value?.trim() ?? '';
+
+                    if (email.isEmpty) {
                       return 'El correo es obligatorio';
                     }
-                    // Validación de formato de correo válido del lado del cliente
-                    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-                    if (!emailRegex.hasMatch(value.trim())) {
-                      return 'Ingresa un formato de correo válido';
+
+                    final atIndex = email.indexOf('@');
+
+                    if (atIndex <= 0 ||
+                        atIndex != email.lastIndexOf('@') ||
+                        atIndex == email.length - 1) {
+                      return 'Ingresa un correo electrónico válido';
                     }
+
+                    final domain = email.substring(atIndex + 1);
+
+                    if (!domain.contains('.') ||
+                        domain.startsWith('.') ||
+                        domain.endsWith('.') ||
+                        domain.contains('..')) {
+                      return 'Ingresa un correo electrónico válido';
+                    }
+
+                    if (email.contains(' ')) {
+                      return 'El correo no debe contener espacios';
+                    }
+
                     return null;
                   },
                 ),
+
                 const SizedBox(height: 16),
 
                 // Contraseña
@@ -172,23 +235,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     prefixIcon: const Icon(Icons.lock_outline),
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
                     ),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'La contraseña es obligatoria';
                     }
+
                     if (value.length < 6) {
                       return 'Debe tener al menos 6 caracteres';
                     }
+
                     return null;
                   },
                 ),
+
                 const SizedBox(height: 16),
 
-                // Confirmación de Contraseña
+                // Confirmación de contraseña
                 TextFormField(
                   controller: _confirmPasswordController,
                   obscureText: _obscureConfirmPassword,
@@ -197,38 +271,60 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     prefixIcon: const Icon(Icons.lock_outline),
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                      icon: Icon(
+                        _obscureConfirmPassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscureConfirmPassword =
+                              !_obscureConfirmPassword;
+                        });
+                      },
                     ),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Confirma tu contraseña';
                     }
+
                     if (value != _passwordController.text) {
                       return 'Las contraseñas no coinciden';
                     }
+
                     return null;
                   },
                 ),
+
                 const SizedBox(height: 24),
 
-                // Botón Registrarse (Criterio: Hace clic en Registrarse)
+                // Botón de registro
                 ElevatedButton(
                   onPressed: _isLoading ? null : _registerUser,
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   child: _isLoading
                       ? const SizedBox(
-                          height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Text(
                           'Registrarse',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                 ),
               ],
