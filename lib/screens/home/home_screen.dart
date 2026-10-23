@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../models/user_model.dart';
 import '../map/map_screen.dart';
+import '../profile/profile_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -12,12 +13,20 @@ class HomeScreen extends StatelessWidget {
     final authService = AuthService();
     final user = authService.currentUser;
 
-    if (user == null) return const SizedBox();
+    if (user == null) {
+      return const SizedBox();
+    }
 
     return StreamBuilder<UserModel?>(
       stream: authService.streamUserProfile(user.uid),
       builder: (context, snapshot) {
         final profile = snapshot.data;
+
+        final String? avatarUrl =
+            profile?.avatarUrl ?? user.photoURL;
+
+        final bool hasAvatar =
+            avatarUrl != null && avatarUrl.isNotEmpty;
 
         return Scaffold(
           appBar: AppBar(
@@ -33,67 +42,83 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
           body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircleAvatar(
-                  radius: 46,
-                  backgroundImage: profile?.avatarUrl != null
-                      ? NetworkImage(profile!.avatarUrl!)
-                      : (user.photoURL != null
-                          ? NetworkImage(user.photoURL!)
-                          : null),
-                  child: (profile?.avatarUrl == null &&
-                          user.photoURL == null)
-                      ? const Icon(Icons.person, size: 46)
-                      : null,
-                ),
-
-                const SizedBox(height: 16),
-
-                Text(
-                  '¡Bienvenido, ${profile?.name ?? user.displayName ?? "Viajero"}!',
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircleAvatar(
+                    radius: 46,
+                    backgroundImage: hasAvatar
+                        ? NetworkImage(avatarUrl)
+                        : null,
+                    child: !hasAvatar
+                        ? const Icon(Icons.person, size: 46)
+                        : null,
                   ),
-                ),
 
-                const SizedBox(height: 6),
+                  const SizedBox(height: 16),
 
-                Text(
-                  user.email ?? '',
-                  style: const TextStyle(
-                    color: Colors.grey,
+                  Text(
+                    '¡Bienvenido, ${profile?.name ?? user.displayName ?? "Viajero"}!',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 12),
+                  const SizedBox(height: 6),
 
-                Chip(
-                  label: Text(
-                    'Rol: ${profile?.role ?? "user"}',
+                  Text(
+                    user.email ?? '',
+                    style: const TextStyle(
+                      color: Colors.grey,
+                    ),
                   ),
-                  backgroundColor: profile?.role == 'admin'
-                      ? Colors.amber.shade100
-                      : Colors.grey.shade200,
-                ),
 
-                const SizedBox(height: 25),
+                  const SizedBox(height: 12),
 
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const MapScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.map),
-                  label: const Text('Ver mapa'),
-                ),
-              ],
+                  Chip(
+                    label: Text(
+                      'Rol: ${profile?.role ?? "user"}',
+                    ),
+                    backgroundColor: profile?.role == 'admin'
+                        ? Colors.amber.shade100
+                        : Colors.grey.shade200,
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MapScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.map),
+                    label: const Text('Ver mapa'),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProfileScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.account_circle),
+                    label: const Text('Mi perfil'),
+                  ),
+                ],
+              ),
             ),
           ),
         );
