@@ -21,9 +21,9 @@ class HomeScreen extends StatelessWidget {
           appBar: AppBar(
             title: const Text('Tlax.Go'),
             actions: [
-              IconButton(
+              TextButton.icon(
                 icon: const Icon(Icons.logout),
-                tooltip: 'Cerrar sesión',
+                label: const Text('Cerrar sesión'),
                 onPressed: () async => await authService.signOut(),
               ),
             ],
@@ -36,7 +36,9 @@ class HomeScreen extends StatelessWidget {
                   radius: 46,
                   backgroundImage: profile?.avatarUrl != null
                       ? NetworkImage(profile!.avatarUrl!)
-                      : (user.photoURL != null ? NetworkImage(user.photoURL!) : null),
+                      : (user.photoURL != null
+                            ? NetworkImage(user.photoURL!)
+                            : null),
                   child: (profile?.avatarUrl == null && user.photoURL == null)
                       ? const Icon(Icons.person, size: 46)
                       : null,
@@ -44,7 +46,10 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 Text(
                   '¡Bienvenido, ${profile?.name ?? user.displayName ?? "Viajero"}!',
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(
