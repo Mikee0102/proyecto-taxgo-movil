@@ -30,6 +30,22 @@
           }
         },
         {
+          "client_id": "889076176339-9itipnmkqmffv17urqdcrmm8g2b45nmi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tlaxgomobil",
+            "certificate_hash": "e88f8804596661f0d489827f0bf69a7161487575"
+          }
+        },
+        {
+          "client_id": "889076176339-svtgllu10smmvjscgn7ptuumbm4nn0qv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tlaxgomobil",
+            "certificate_hash": "b8817b20849ce323ed59f032f6a91bad91db526a"
+          }
+        },
+        {
           "client_id": "889076176339-uea5q8576v30nj7k0qm1275je71m1lj7.apps.googleusercontent.com",
           "client_type": 3
         }
