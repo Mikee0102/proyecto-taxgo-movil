@@ -5,6 +5,17 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 
 class AuthService {
+  // 1. Instancia estática privada de la clase
+  static final AuthService _instance = AuthService._internal();
+
+  // 2. Constructor factory que siempre retorna la misma instancia
+  factory AuthService() {
+    return _instance;
+  }
+
+  // 3. Constructor privado real (evita que se instancie con 'new AuthService()')
+  AuthService._internal();
+
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   
@@ -19,7 +30,6 @@ class AuthService {
   User? get currentUser => _auth.currentUser;
 
   // Asegura la inicialización de GoogleSignIn v7
-// En tu auth_service.dart
   Future<void> _ensureGoogleInitialized() async {
     if (!_isGoogleSignInInitialized) {
       await _googleSignIn.initialize(
