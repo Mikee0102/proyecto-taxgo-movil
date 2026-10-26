@@ -1,9 +1,11 @@
 
 import 'package:flutter/material.dart';
+
 import '../../services/auth_service.dart';
 import '../../models/user_model.dart';
 import '../map/map_screen.dart';
 import '../profile/profile_screen.dart';
+import '../rutas_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -14,7 +16,11 @@ class HomeScreen extends StatelessWidget {
     final user = authService.currentUser;
 
     if (user == null) {
-      return const SizedBox();
+      return const Scaffold(
+        body: Center(
+          child: Text('No hay una sesión iniciada.'),
+        ),
+      );
     }
 
     return StreamBuilder<UserModel?>(
@@ -22,100 +28,158 @@ class HomeScreen extends StatelessWidget {
       builder: (context, snapshot) {
         final profile = snapshot.data;
 
-        final String? avatarUrl =
-            profile?.avatarUrl ?? user.photoURL;
+        final String nombre =
+            profile?.name.isNotEmpty == true
+                ? profile!.name
+                : user.displayName ?? 'Viajero';
 
-        final bool hasAvatar =
+        final String? avatarUrl = profile?.avatarUrl ?? user.photoURL;
+
+        final bool tieneAvatar =
             avatarUrl != null && avatarUrl.isNotEmpty;
 
         return Scaffold(
           appBar: AppBar(
             title: const Text('Tlax.Go'),
+            backgroundColor: Colors.teal,
+            foregroundColor: Colors.white,
             actions: [
-              TextButton.icon(
+              IconButton(
+                tooltip: 'Cerrar sesión',
                 icon: const Icon(Icons.logout),
-                label: const Text('Cerrar sesión'),
                 onPressed: () async {
                   await authService.signOut();
+
+                  if (context.mounted) {
+                    Navigator.of(context).popUntil(
+                      (route) => route.isFirst,
+                    );
+                  }
                 },
               ),
             ],
           ),
+
           body: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   CircleAvatar(
-                    radius: 46,
-                    backgroundImage: hasAvatar
-                        ? NetworkImage(avatarUrl)
-                        : null,
-                    child: !hasAvatar
-                        ? const Icon(Icons.person, size: 46)
+                    radius: 48,
+                    backgroundColor: Colors.teal.shade100,
+                    backgroundImage:
+                        tieneAvatar ? NetworkImage(avatarUrl!) : null,
+                    child: !tieneAvatar
+                        ? const Icon(
+                            Icons.person,
+                            size: 55,
+                            color: Colors.teal,
+                          )
                         : null,
                   ),
 
                   const SizedBox(height: 16),
 
                   Text(
-                    '¡Bienvenido, ${profile?.name ?? user.displayName ?? "Viajero"}!',
+                    '¡Bienvenido, $nombre!',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      fontSize: 22,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
 
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
 
                   Text(
-                    user.email ?? '',
-                    style: const TextStyle(
-                      color: Colors.grey,
+                    user.email ?? 'Sin correo registrado',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Colors.grey.shade700,
                     ),
                   ),
 
                   const SizedBox(height: 12),
 
                   Chip(
-                    label: Text(
-                      'Rol: ${profile?.role ?? "user"}',
+                    avatar: const Icon(
+                      Icons.verified_user,
+                      color: Colors.teal,
                     ),
-                    backgroundColor: profile?.role == 'admin'
-                        ? Colors.amber.shade100
-                        : Colors.grey.shade200,
+                    label: Text(
+                      'Rol: ${profile?.role ?? 'user'}',
+                    ),
                   ),
 
-                  const SizedBox(height: 25),
+                  const SizedBox(height: 30),
 
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const MapScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.map),
-                    label: const Text('Ver mapa'),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const MapScreen(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.map),
+                      label: const Text('Explorar mapa turístico'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                      ),
+                    ),
                   ),
 
                   const SizedBox(height: 12),
 
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ProfileScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.account_circle),
-                    label: const Text('Mi perfil'),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const RutasScreen(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.favorite),
+                      label: const Text('Probar rutas favoritas'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.pink.shade50,
+                        foregroundColor: Colors.pink.shade700,
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ProfileScreen(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.person),
+                      label: const Text('Mi perfil'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.teal,
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                      ),
+                    ),
                   ),
                 ],
               ),
