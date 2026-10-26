@@ -4,6 +4,26 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../../models/filter_option.dart';
+import '../../widgets/filters.dart';
+
+// Modelo local de atractivos turísticos.
+class Place {
+  final String id;
+  final String name;
+  final PlaceCategory category;
+  final LatLng location;
+  final bool isFavorite;
+
+  const Place({
+    required this.id,
+    required this.name,
+    required this.category,
+    required this.location,
+    this.isFavorite = false,
+  });
+}
+
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
@@ -19,6 +39,83 @@ class _MapScreenState extends State<MapScreen>
   bool _isLoading = false;
   bool _mapReady = false;
 
+  PlaceCategory _activeCategory = PlaceCategory.all;
+
+  // Atractivos turísticos de prueba.
+  final List<Place> _allPlaces = const [
+    Place(
+      id: '1',
+      name: 'Museo Regional de Tlaxcala',
+      category: PlaceCategory.museum,
+      location: LatLng(19.3182, -98.2375),
+    ),
+    Place(
+      id: '2',
+      name: 'Museo de Arte de Tlaxcala (MAT)',
+      category: PlaceCategory.museum,
+      location: LatLng(19.3220, -98.2450),
+    ),
+    Place(
+      id: '3',
+      name: 'Basílica de Nuestra Señora de Ocotlán',
+      category: PlaceCategory.church,
+      location: LatLng(19.3250, -98.2300),
+      isFavorite: true,
+    ),
+    Place(
+      id: '4',
+      name: 'Ex Convento de San Francisco',
+      category: PlaceCategory.church,
+      location: LatLng(19.3140, -98.2360),
+    ),
+    Place(
+      id: '5',
+      name: 'Parque Nacional La Malinche',
+      category: PlaceCategory.park,
+      location: LatLng(19.2300, -98.3000),
+    ),
+    Place(
+      id: '6',
+      name: 'Zócalo de Tlaxcala',
+      category: PlaceCategory.park,
+      location: LatLng(19.3175, -98.2381),
+      isFavorite: true,
+    ),
+    Place(
+      id: '7',
+      name: 'Mirador de Ocotlán',
+      category: PlaceCategory.viewpoint,
+      location: LatLng(19.3270, -98.2280),
+    ),
+    Place(
+      id: '8',
+      name: 'Restaurante Los Portales',
+      category: PlaceCategory.restaurant,
+      location: LatLng(19.3150, -98.2400),
+      isFavorite: true,
+    ),
+    Place(
+      id: '9',
+      name: 'Hotel San Francisco Tlaxcala',
+      category: PlaceCategory.hotel,
+      location: LatLng(19.3160, -98.2350),
+    ),
+  ];
+
+  List<Place> get _filteredPlaces {
+    if (_activeCategory == PlaceCategory.all) {
+      return _allPlaces;
+    }
+
+    if (_activeCategory == PlaceCategory.favorites) {
+      return _allPlaces.where((place) => place.isFavorite).toList();
+    }
+
+    return _allPlaces
+        .where((place) => place.category == _activeCategory)
+        .toList();
+  }
+
   Future<void> _getCurrentLocation() async {
     if (_isLoading) return;
 
@@ -27,17 +124,17 @@ class _MapScreenState extends State<MapScreen>
     });
 
     try {
-      // 1. Comprobar si el servicio de ubicación está activado.
+      // Comprobar si el servicio de ubicación está activado.
       final bool serviceEnabled =
           await Geolocator.isLocationServiceEnabled();
 
       if (!serviceEnabled) {
         throw Exception(
-          'La ubicación está desactivada. Actívala en los ajustes del emulador.',
+          'La ubicación está desactivada. Actívala en los ajustes del dispositivo.',
         );
       }
 
-      // 2. Comprobar los permisos.
+      // Comprobar permisos.
       LocationPermission permission =
           await Geolocator.checkPermission();
 
@@ -46,22 +143,17 @@ class _MapScreenState extends State<MapScreen>
       }
 
       if (permission == LocationPermission.denied) {
-        throw Exception(
-          'Permiso de ubicación denegado. Autorízalo en Ajustes > Aplicaciones.',
-        );
+        throw Exception('Permiso de ubicación denegado.');
       }
 
       if (permission == LocationPermission.deniedForever) {
         throw Exception(
-          'El permiso está denegado permanentemente. Actívalo manualmente en los ajustes de la aplicación.',
+          'El permiso está denegado permanentemente. Actívalo en los ajustes de la aplicación.',
         );
       }
 
-      // 3. Obtener la posición actual.
-      // En el emulador, primero configura una ubicación
-      // desde Extended Controls > Location.
-      final Position position =
-          await Geolocator.getCurrentPosition(
+      // Obtener la ubicación actual.
+      final Position position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
           timeLimit: Duration(seconds: 25),
@@ -80,7 +172,7 @@ class _MapScreenState extends State<MapScreen>
         _isLoading = false;
       });
 
-      // 4. Mover el mapa a la posición obtenida.
+      // Centrar el mapa cuando esté listo.
       if (_mapReady) {
         _animatedMapMove(currentLatLng, 16.0);
       }
@@ -177,17 +269,23 @@ class _MapScreenState extends State<MapScreen>
 
   @override
   Widget build(BuildContext context) {
+    final List<Place> currentPlaces = _filteredPlaces;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mapa Turístico - Tlaxcala'),
-      ),
       body: Stack(
         children: [
           FlutterMap(
             mapController: _mapController,
-            options: const MapOptions(
-              initialCenter: LatLng(19.3182, -98.2375),
+            options: MapOptions(
+              initialCenter: const LatLng(19.3182, -98.2375),
               initialZoom: 13.0,
+              onMapReady: () {
+                _mapReady = true;
+
+                if (_currentPosition != null) {
+                  _animatedMapMove(_currentPosition!, 16.0);
+                }
+              },
             ),
             children: [
               TileLayer(
@@ -195,6 +293,36 @@ class _MapScreenState extends State<MapScreen>
                     'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.tlaxgomobil',
               ),
+
+              // Marcadores turísticos según el filtro seleccionado.
+              MarkerLayer(
+                markers: currentPlaces.map((place) {
+                  return Marker(
+                    point: place.location,
+                    width: 44,
+                    height: 50,
+                    child: GestureDetector(
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              '${place.name} '
+                              '(Favorito: ${place.isFavorite ? "Sí" : "No"})',
+                            ),
+                          ),
+                        );
+                      },
+                      child: const Icon(
+                        Icons.location_on,
+                        color: Colors.redAccent,
+                        size: 40,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+
+              // Marcador de ubicación actual.
               if (_currentPosition != null)
                 MarkerLayer(
                   markers: [
@@ -213,6 +341,73 @@ class _MapScreenState extends State<MapScreen>
             ],
           ),
 
+          // Filtros turísticos.
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 12,
+            left: 0,
+            right: 0,
+            child: Filters(
+              activeCategory: _activeCategory,
+              onCategoryChange: (newCategory) {
+                setState(() {
+                  _activeCategory = newCategory;
+                });
+              },
+            ),
+          ),
+
+          // Mensaje cuando no existen resultados.
+          if (currentPlaces.isEmpty)
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                margin: const EdgeInsets.symmetric(horizontal: 32),
+                decoration: BoxDecoration(
+                  color: const Color(0xE6020617),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: const Color(0xFF1E293B),
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black45,
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.search_off,
+                      size: 48,
+                      color: Colors.grey,
+                    ),
+                    SizedBox(height: 12),
+                    Text(
+                      'No hay resultados',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'No se encontraron lugares en esta categoría.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // Indicador de carga.
           if (_isLoading)
             const Center(
               child: Card(
@@ -231,6 +426,7 @@ class _MapScreenState extends State<MapScreen>
             ),
         ],
       ),
+
       floatingActionButton: FloatingActionButton(
         onPressed: _getCurrentLocation,
         tooltip: 'Mi ubicación actual',
