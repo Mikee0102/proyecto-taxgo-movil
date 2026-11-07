@@ -1,6 +1,8 @@
 // lib/widgets/filters.dart
 import 'package:flutter/material.dart';
+
 import '../models/filter_option.dart';
+import '../styles/app_colors.dart';
 
 class Filters extends StatelessWidget {
   final PlaceCategory activeCategory;
@@ -31,42 +33,44 @@ class Filters extends StatelessWidget {
               onTap: () => onCategoryChange(option.id),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: isActive
-                      ? const Color(0xFF0EA5E9) // Color sky-500
-                      : const Color(0xE6020617), // Color slate-950 con opacidad
+                      ? AppColors.accent
+                      : AppColors.navy.withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isActive
-                        ? const Color(0xFF38BDF8) // Color sky-400
-                        : const Color(0xFF1E293B), // Color slate-800
+                        ? AppColors.accentLight
+                        : AppColors.textStrong,
                     width: 1,
                   ),
                   boxShadow: isActive
                       ? [
                           BoxShadow(
-                            color: const Color(0xFF0EA5E9).withOpacity(0.3),
+                            color: AppColors.accent.withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
-                          )
+                          ),
                         ]
                       : [],
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      option.icon,
-                      style: const TextStyle(fontSize: 14),
-                    ),
+                    Text(option.icon, style: const TextStyle(fontSize: 14)),
                     const SizedBox(width: 6),
                     Text(
                       option.label,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: isActive ? Colors.white : const Color(0xFFCBD5E1), // slate-300
+                        color: isActive
+                            ? AppColors.surface
+                            : AppColors.heroText,
                       ),
                     ),
                   ],

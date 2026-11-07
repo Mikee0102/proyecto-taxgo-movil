@@ -1,5 +1,6 @@
-
 import 'package:flutter/material.dart';
+
+import '../styles/app_colors.dart';
 
 class RutaPrueba {
   final String id;
@@ -31,7 +32,8 @@ class _RutasScreenState extends State<RutasScreen> {
     RutaPrueba(
       id: 'ruta_1',
       nombre: 'Centro Histórico de Tlaxcala',
-      descripcion: 'Recorre plazas, edificios históricos y calles tradicionales.',
+      descripcion:
+          'Recorre plazas, edificios históricos y calles tradicionales.',
       categoria: 'Cultural',
       icono: Icons.account_balance,
     ),
@@ -72,15 +74,13 @@ class _RutasScreenState extends State<RutasScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Rutas turísticas'),
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Center(
               child: Row(
                 children: [
-                  const Icon(Icons.favorite, color: Colors.pinkAccent),
+                  const Icon(Icons.favorite, color: AppColors.favorite),
                   const SizedBox(width: 5),
                   Text('${_favoritos.length}'),
                 ],
@@ -99,7 +99,7 @@ class _RutasScreenState extends State<RutasScreen> {
           const SizedBox(height: 6),
           const Text(
             'Prueba cómo funcionarán los favoritos de tus rutas.',
-            style: TextStyle(color: Colors.grey),
+            style: TextStyle(color: AppColors.muted),
           ),
           const SizedBox(height: 18),
           ..._rutas.map((ruta) {
@@ -120,13 +120,13 @@ class _RutasScreenState extends State<RutasScreen> {
                       width: 65,
                       height: 75,
                       decoration: BoxDecoration(
-                        color: Colors.teal.withValues(alpha: 0.12),
+                        color: AppColors.accent.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
                         ruta.icono,
                         size: 35,
-                        color: Colors.teal,
+                        color: AppColors.accentDark,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -174,10 +174,7 @@ class _RutasScreenState extends State<RutasScreen> {
           Text(
             'Favoritos seleccionados: ${_favoritos.length}',
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
         ],
       ),

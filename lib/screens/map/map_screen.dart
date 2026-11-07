@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -31,8 +30,7 @@ class MapScreen extends StatefulWidget {
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen>
-    with TickerProviderStateMixin {
+class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   final MapController _mapController = MapController();
 
   LatLng? _currentPosition;
@@ -125,8 +123,7 @@ class _MapScreenState extends State<MapScreen>
 
     try {
       // Comprobar si el servicio de ubicación está activado.
-      final bool serviceEnabled =
-          await Geolocator.isLocationServiceEnabled();
+      final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
       if (!serviceEnabled) {
         throw Exception(
@@ -135,8 +132,7 @@ class _MapScreenState extends State<MapScreen>
       }
 
       // Comprobar permisos.
-      LocationPermission permission =
-          await Geolocator.checkPermission();
+      LocationPermission permission = await Geolocator.checkPermission();
 
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -207,10 +203,7 @@ class _MapScreenState extends State<MapScreen>
     }
   }
 
-  void _animatedMapMove(
-    LatLng destination,
-    double destinationZoom,
-  ) {
+  void _animatedMapMove(LatLng destination, double destinationZoom) {
     if (!_mapReady) return;
 
     final camera = _mapController.camera;
@@ -225,10 +218,7 @@ class _MapScreenState extends State<MapScreen>
       end: destination.longitude,
     );
 
-    final zoomTween = Tween<double>(
-      begin: camera.zoom,
-      end: destinationZoom,
-    );
+    final zoomTween = Tween<double>(begin: camera.zoom, end: destinationZoom);
 
     final controller = AnimationController(
       duration: const Duration(milliseconds: 1200),
@@ -244,10 +234,7 @@ class _MapScreenState extends State<MapScreen>
       if (!mounted || !_mapReady) return;
 
       _mapController.move(
-        LatLng(
-          latTween.evaluate(animation),
-          lngTween.evaluate(animation),
-        ),
+        LatLng(latTween.evaluate(animation), lngTween.evaluate(animation)),
         zoomTween.evaluate(animation),
       );
     });
@@ -289,8 +276,7 @@ class _MapScreenState extends State<MapScreen>
             ),
             children: [
               TileLayer(
-                urlTemplate:
-                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.tlaxgomobil',
               ),
 
@@ -365,9 +351,7 @@ class _MapScreenState extends State<MapScreen>
                 decoration: BoxDecoration(
                   color: const Color(0xE6020617),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color(0xFF1E293B),
-                  ),
+                  border: Border.all(color: const Color(0xFF1E293B)),
                   boxShadow: const [
                     BoxShadow(
                       color: Colors.black45,
@@ -379,11 +363,7 @@ class _MapScreenState extends State<MapScreen>
                 child: const Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.search_off,
-                      size: 48,
-                      color: Colors.grey,
-                    ),
+                    Icon(Icons.search_off, size: 48, color: Colors.grey),
                     SizedBox(height: 12),
                     Text(
                       'No hay resultados',
@@ -397,10 +377,7 @@ class _MapScreenState extends State<MapScreen>
                     Text(
                       'No se encontraron lugares en esta categoría.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 13,
-                      ),
+                      style: TextStyle(color: Colors.grey, fontSize: 13),
                     ),
                   ],
                 ),
