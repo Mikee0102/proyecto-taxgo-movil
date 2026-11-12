@@ -1,4 +1,3 @@
-
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -9,9 +8,12 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../services/auth_service.dart';
 import '../../models/user_model.dart';
+import '../../styles/app_colors.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({super.key, this.onReturn});
+
+  final VoidCallback? onReturn;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -52,10 +54,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                  controller.text.trim(),
-                );
+                Navigator.pop(dialogContext, controller.text.trim());
               },
               child: const Text('Guardar'),
             ),
@@ -83,10 +82,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       await user.updateDisplayName(newName.trim());
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .set({
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'name': newName.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -94,17 +90,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('¡Nombre actualizado correctamente!'),
-        ),
+        const SnackBar(content: Text('¡Nombre actualizado correctamente!')),
       );
     } catch (e) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No se pudo actualizar el nombre: $e'),
-        ),
+        SnackBar(content: Text('No se pudo actualizar el nombre: $e')),
       );
     } finally {
       if (mounted) {
@@ -150,10 +142,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       final downloadUrl = await storageRef.getDownloadURL();
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .set({
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'avatarUrl': downloadUrl,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -163,18 +152,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('¡Foto de perfil actualizada!'),
-        ),
+        const SnackBar(content: Text('¡Foto de perfil actualizada!')),
       );
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No se pudo cambiar la foto: $e'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('No se pudo cambiar la foto: $e')));
     } finally {
       if (mounted) {
         setState(() => _uploadingImage = false);
@@ -190,9 +175,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (user == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Mi perfil')),
-        body: const Center(
-          child: Text('Debes iniciar sesión.'),
-        ),
+        body: const Center(child: Text('Debes iniciar sesión.')),
       );
     }
 
@@ -202,41 +185,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(
             appBar: AppBar(title: const Text('Mi perfil')),
-            body: const Center(
-              child: CircularProgressIndicator(),
-            ),
+            body: const Center(child: CircularProgressIndicator()),
           );
         }
 
         if (snapshot.hasError) {
           return Scaffold(
             appBar: AppBar(title: const Text('Mi perfil')),
-            body: const Center(
-              child: Text('No se pudo cargar el perfil.'),
-            ),
+            body: const Center(child: Text('No se pudo cargar el perfil.')),
           );
         }
 
         final profile = snapshot.data;
 
-        final name =
-            profile?.name ?? user.displayName ?? 'Viajero';
+        final name = profile?.name ?? user.displayName ?? 'Viajero';
 
         final email = user.email ?? 'Correo no disponible';
 
-        final role = profile?.role ?? 'user';
+        final avatarUrl = profile?.avatarUrl ?? user.photoURL;
 
-        final avatarUrl =
-            profile?.avatarUrl ?? user.photoURL;
-
-        final hasAvatar =
-            avatarUrl != null && avatarUrl.isNotEmpty;
+        final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
 
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('Mi perfil'),
-            centerTitle: true,
-          ),
+          appBar: AppBar(title: const Text('Mi perfil'), centerTitle: true),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -248,7 +219,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     CircleAvatar(
                       radius: 65,
-                      backgroundColor: Colors.blue.shade100,
+                      backgroundColor: AppColors.accent.withValues(alpha: 0.16),
                       backgroundImage: hasAvatar
                           ? NetworkImage(avatarUrl)
                           : null,
@@ -256,18 +227,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ? const Icon(
                               Icons.person,
                               size: 70,
-                              color: Colors.blueGrey,
+                              color: AppColors.primary,
                             )
                           : null,
                     ),
 
                     Material(
-                      color: Colors.blue,
+                      color: AppColors.accent,
                       shape: const CircleBorder(),
                       child: IconButton(
-                        onPressed: _uploadingImage
-                            ? null
-                            : _changePhoto,
+                        onPressed: _uploadingImage ? null : _changePhoto,
                         tooltip: 'Cambiar foto',
                         icon: _uploadingImage
                             ? const SizedBox(
@@ -278,10 +247,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   color: Colors.white,
                                 ),
                               )
-                            : const Icon(
-                                Icons.camera_alt,
-                                color: Colors.white,
-                              ),
+                            : const Icon(Icons.camera_alt, color: Colors.white),
                       ),
                     ),
                   ],
@@ -290,9 +256,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 12),
 
                 TextButton.icon(
-                  onPressed: _uploadingImage
-                      ? null
-                      : _changePhoto,
+                  onPressed: _uploadingImage ? null : _changePhoto,
                   icon: const Icon(Icons.photo_library),
                   label: const Text('Cambiar foto de perfil'),
                 ),
@@ -315,8 +279,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
 
-                      if (_savingName)
-                        const LinearProgressIndicator(),
+                      if (_savingName) const LinearProgressIndicator(),
 
                       const Divider(height: 1),
 
@@ -324,14 +287,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         leading: const Icon(Icons.email),
                         title: const Text('Correo electrónico'),
                         subtitle: Text(email),
-                      ),
-
-                      const Divider(height: 1),
-
-                      ListTile(
-                        leading: const Icon(Icons.verified_user),
-                        title: const Text('Rol'),
-                        subtitle: Text(role),
                       ),
                     ],
                   ),
@@ -342,7 +297,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: widget.onReturn ?? () => Navigator.pop(context),
                     icon: const Icon(Icons.arrow_back),
                     label: const Text('Regresar al inicio'),
                   ),

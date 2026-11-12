@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/auth/auth_wrapper.dart';
+import 'styles/app_theme.dart';
 
+//// xd
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const TlaxGoApp());
 }
 
@@ -19,10 +19,7 @@ class TlaxGoApp extends StatelessWidget {
     return MaterialApp(
       title: 'Tlax.Go',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light,
       home: const AuthWrapper(),
     );
   }
