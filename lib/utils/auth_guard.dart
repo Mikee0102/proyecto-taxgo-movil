@@ -1,7 +1,7 @@
-import 'dart:async';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import 'app_routes.dart';
 
 class AuthGuard extends StatefulWidget {
   const AuthGuard({required this.child, super.key});
@@ -13,53 +13,78 @@ class AuthGuard extends StatefulWidget {
 }
 
 class _AuthGuardState extends State<AuthGuard> {
-  late final StreamSubscription<User?> _authSubscription;
-  bool _isCheckingAuth = true;
+  Stream<User?>? _sessionChanges;
   bool _isRedirecting = false;
 
   @override
   void initState() {
     super.initState();
-    _authSubscription = FirebaseAuth.instance.authStateChanges().listen(
-      _handleAuthChange,
-    );
+    _sessionChanges = AuthService().verifiedAuthStateChanges;
   }
 
-  void _handleAuthChange(User? user) {
-    if (!mounted) return;
+  void _redirectToLogin() {
+    if (_isRedirecting) return;
+    _isRedirecting = true;
 
-    setState(() => _isCheckingAuth = false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
 
-    if (user == null && !_isRedirecting) {
-      _isRedirecting = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        Navigator.of(context).pushNamedAndRemoveUntil<void>(
-          '/auth/login',
-          (route) => false,
-        );
-      });
-    } else if (user != null) {
+      final currentRoute = ModalRoute.of(context)?.settings.name;
+
+      Navigator.of(context).pushNamedAndRemoveUntil<void>(
+        AppRoutes.login,
+        (route) => false,
+        arguments: AppRoutes.safeReturnTo(currentRoute),
+      );
+    });
+  }
+
+  void _retrySessionCheck() {
+    setState(() {
       _isRedirecting = false;
-    }
-  }
-
-  @override
-  void dispose() {
-    _authSubscription.cancel();
-    super.dispose();
+      _sessionChanges = AuthService().verifiedAuthStateChanges;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isCheckingAuth) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+    return StreamBuilder<User?>(
+      stream: _sessionChanges,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
 
-    if (_isRedirecting) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('No se pudo verificar la sesión.'),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: _retrySessionCheck,
+                    child: const Text('Reintentar'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
 
-    return widget.child;
+        if (snapshot.data == null) {
+          _redirectToLogin();
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        _isRedirecting = false;
+        return widget.child;
+      },
+    );
   }
 }
