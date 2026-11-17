@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '/utils/auth_errors.dart';
-import 'register_screen.dart'; // 1. Importa tu pantalla de registro
+import '../../utils/app_routes.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,10 +16,25 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passCtrl = TextEditingController();
   bool _isLoading = false;
 
+  String get _returnTo {
+    final argument = ModalRoute.of(context)?.settings.arguments;
+    return AppRoutes.safeReturnTo(argument);
+  }
+
+  void _continueToDestination() {
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil<void>(_returnTo, (route) => false);
+  }
+
   Future<void> _handleLogin() async {
     if (_emailCtrl.text.isEmpty || _passCtrl.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Campos incompletos. Por favor, llena todos los campos obligatorios.')),
+        const SnackBar(
+          content: Text(
+            'Campos incompletos. Por favor, llena todos los campos obligatorios.',
+          ),
+        ),
       );
       return;
     }
@@ -30,6 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text.trim(),
       );
+      if (mounted) _continueToDestination();
     } catch (e) {
       if (mounted) {
         final friendlyMessage = AuthErrors.getFriendlyErrorMessage(e);
@@ -48,7 +64,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleGoogle() async {
     setState(() => _isLoading = true);
     try {
-      await _authService.signInWithGoogle();
+      final credential = await _authService.signInWithGoogle();
+      if (credential != null && mounted) _continueToDestination();
     } catch (e) {
       if (mounted) {
         final friendlyMessage = AuthErrors.getFriendlyErrorMessage(e);
@@ -82,7 +99,11 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(Icons.explore_rounded, size: 72, color: Colors.deepPurple),
+                const Icon(
+                  Icons.explore_rounded,
+                  size: 72,
+                  color: Colors.deepPurple,
+                ),
                 const SizedBox(height: 12),
                 const Text(
                   'Tlax.Go',
@@ -126,7 +147,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Iniciar Sesión', style: TextStyle(fontSize: 16)),
+                      : const Text(
+                          'Iniciar Sesión',
+                          style: TextStyle(fontSize: 16),
+                        ),
                 ),
                 const SizedBox(height: 16),
                 const Row(
@@ -134,7 +158,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     Expanded(child: Divider()),
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 12),
-                      child: Text('o continúa con', style: TextStyle(color: Colors.grey)),
+                      child: Text(
+                        'o continúa con',
+                        style: TextStyle(color: Colors.grey),
+                      ),
                     ),
                     Expanded(child: Divider()),
                   ],
@@ -157,11 +184,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Text('¿No tienes cuenta?'),
                     TextButton(
                       onPressed: () {
-                        Navigator.push(
+                        Navigator.pushNamed(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => const RegisterScreen(),
-                          ),
+                          AppRoutes.register,
+                          arguments: _returnTo,
                         );
                       },
                       child: const Text(
