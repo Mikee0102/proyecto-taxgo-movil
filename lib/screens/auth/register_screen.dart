@@ -1,7 +1,7 @@
-
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/auth_service.dart';
+import '../../utils/app_routes.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -14,18 +14,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final AuthService _authService = AuthService();
 
-  final TextEditingController _nameController =
-      TextEditingController();
-  final TextEditingController _emailController =
-      TextEditingController();
-  final TextEditingController _passwordController =
-      TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+
+  String get _returnTo {
+    final argument = ModalRoute.of(context)?.settings.arguments;
+    return AppRoutes.safeReturnTo(argument);
+  }
 
   @override
   void dispose() {
@@ -58,34 +60,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       );
 
-      _formKey.currentState!.reset();
-      _nameController.clear();
-      _emailController.clear();
-      _passwordController.clear();
-      _confirmPasswordController.clear();
-
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil<void>(_returnTo, (route) => false);
     } on FirebaseAuthException catch (e) {
       String errorMessage;
 
       switch (e.code) {
         case 'email-already-in-use':
-          errorMessage =
-              'Este correo electrónico ya está registrado.';
+          errorMessage = 'Este correo electrónico ya está registrado.';
           break;
 
         case 'invalid-email':
-          errorMessage =
-              'Firebase indica que el correo no es válido.';
+          errorMessage = 'Firebase indica que el correo no es válido.';
           break;
 
         case 'weak-password':
-          errorMessage =
-              'La contraseña debe tener al menos 6 caracteres.';
+          errorMessage = 'La contraseña debe tener al menos 6 caracteres.';
           break;
 
         case 'network-request-failed':
-          errorMessage =
-              'Error de conexión. Revisa tu internet.';
+          errorMessage = 'Error de conexión. Revisa tu internet.';
           break;
 
         case 'operation-not-allowed':
@@ -94,8 +89,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           break;
 
         default:
-          errorMessage =
-              e.message ?? 'No se pudo crear la cuenta.';
+          errorMessage = e.message ?? 'No se pudo crear la cuenta.';
       }
 
       if (!mounted) return;
@@ -107,7 +101,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           duration: const Duration(seconds: 5),
         ),
       );
-
     } catch (e) {
       if (!mounted) return;
 
@@ -142,10 +135,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               children: [
                 const Text(
                   'Crea tu cuenta',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
 
@@ -153,10 +143,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 const Text(
                   'Accede a las funcionalidades personalizadas de Tlax.Go',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: Colors.grey, fontSize: 13),
                   textAlign: TextAlign.center,
                 ),
 
@@ -278,8 +265,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       onPressed: () {
                         setState(() {
-                          _obscureConfirmPassword =
-                              !_obscureConfirmPassword;
+                          _obscureConfirmPassword = !_obscureConfirmPassword;
                         });
                       },
                     ),
@@ -303,9 +289,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ElevatedButton(
                   onPressed: _isLoading ? null : _registerUser,
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),

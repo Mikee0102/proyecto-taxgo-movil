@@ -18,13 +18,35 @@ class AuthService {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  
+
   // En v7 es un singleton
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   bool _isGoogleSignInInitialized = false;
 
-  // Stream para escuchar cambios de sesión en tiempo real
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  Stream<User?> get verifiedAuthStateChanges =>
+      _auth.idTokenChanges().asyncMap((user) async {
+        if (user == null) return null;
+
+        try {
+          final token = await user.getIdToken();
+          if (token == null || token.isEmpty) {
+            await _auth.signOut();
+            return null;
+          }
+          return user;
+        } on FirebaseAuthException catch (error) {
+          const invalidSessionCodes = {
+            'invalid-user-token',
+            'user-disabled',
+            'user-not-found',
+            'user-token-expired',
+          };
+          if (!invalidSessionCodes.contains(error.code)) rethrow;
+
+          await _auth.signOut();
+          return null;
+        }
+      });
 
   // Usuario actual
   User? get currentUser => _auth.currentUser;
@@ -33,7 +55,8 @@ class AuthService {
   Future<void> _ensureGoogleInitialized() async {
     if (!_isGoogleSignInInitialized) {
       await _googleSignIn.initialize(
-        serverClientId: '889076176339-uea5q8576v30nj7k0qm1275je71m1lj7.apps.googleusercontent.com',
+        serverClientId:
+            '889076176339-uea5q8576v30nj7k0qm1275je71m1lj7.apps.googleusercontent.com',
       );
       _isGoogleSignInInitialized = true;
     }
