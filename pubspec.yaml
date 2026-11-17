@@ -15,7 +15,8 @@ dependencies:
     sdk: flutter
   google_sign_in: ^7.2.0
   supabase_flutter: ^2.18.3
-  # Agrega estas tres líneas:
+  
+  # Geolocalización y Mapas
   flutter_map: ^7.0.0
   latlong2: ^0.9.0
   geolocator: ^13.0.2
@@ -25,6 +26,12 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: "^0.13.1"
+
+flutter_launcher_icons:
+  image_path: "assets/images/icono.jpg"
+  android: true
+  ios: true
 
 flutter:
   uses-material-design: true
