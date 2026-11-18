@@ -1,7 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/filter_option.dart';
 import '../../widgets/filters.dart';
@@ -32,6 +35,7 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   final MapController _mapController = MapController();
+  final Set<String> _favoritos = {};
 
   LatLng? _currentPosition;
   bool _isLoading = false;
@@ -58,7 +62,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       name: 'Basílica de Nuestra Señora de Ocotlán',
       category: PlaceCategory.church,
       location: LatLng(19.3250, -98.2300),
-      isFavorite: true,
     ),
     Place(
       id: '4',
@@ -77,7 +80,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       name: 'Zócalo de Tlaxcala',
       category: PlaceCategory.park,
       location: LatLng(19.3175, -98.2381),
-      isFavorite: true,
     ),
     Place(
       id: '7',
@@ -90,7 +92,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       name: 'Restaurante Los Portales',
       category: PlaceCategory.restaurant,
       location: LatLng(19.3150, -98.2400),
-      isFavorite: true,
     ),
     Place(
       id: '9',
@@ -106,12 +107,174 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     }
 
     if (_activeCategory == PlaceCategory.favorites) {
-      return _allPlaces.where((place) => place.isFavorite).toList();
+      return _allPlaces
+          .where((place) => _favoritos.contains(place.id))
+          .toList();
     }
 
     return _allPlaces
         .where((place) => place.category == _activeCategory)
         .toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarFavoritos();
+  }
+
+  Future<void> _cargarFavoritos() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('favorites')
+          .get();
+
+      if (!mounted) return;
+
+      setState(() {
+        _favoritos
+          ..clear()
+          ..addAll(snapshot.docs.map((document) => document.id));
+      });
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudieron cargar los lugares favoritos: $error'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _toggleFavorito(Place place) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final referencia = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('favorites')
+        .doc(place.id);
+    final esFavorito = _favoritos.contains(place.id);
+
+    try {
+      if (esFavorito) {
+        await referencia.delete();
+      } else {
+        await referencia.set({
+          'type': 'place',
+          'name': place.name,
+          'category': place.category.name,
+          'latitude': place.location.latitude,
+          'longitude': place.location.longitude,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        if (esFavorito) {
+          _favoritos.remove(place.id);
+        } else {
+          _favoritos.add(place.id);
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            esFavorito
+                ? '${place.name} se quitó de lugares favoritos'
+                : '${place.name} se agregó a lugares favoritos',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo actualizar el lugar favorito: $error'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _abrirComoLlegar(Place place) async {
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1'
+      '&destination=${place.location.latitude},${place.location.longitude}'
+      '&travelmode=driving',
+    );
+
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo abrir la aplicación de mapas.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _mostrarOpcionesLugar(Place place) async {
+    final esFavorito = _favoritos.contains(place.id);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  place.name,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(sheetContext);
+                    await _abrirComoLlegar(place);
+                  },
+                  icon: const Icon(Icons.directions),
+                  label: const Text('Cómo llegar'),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(sheetContext);
+                    await _toggleFavorito(place);
+                  },
+                  icon: Icon(
+                    esFavorito ? Icons.favorite : Icons.favorite_border,
+                    color: esFavorito ? Colors.red : null,
+                  ),
+                  label: Text(
+                    esFavorito
+                        ? 'Quitar de lugares favoritos'
+                        : 'Agregar a lugares favoritos',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _getCurrentLocation() async {
@@ -288,16 +451,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     width: 44,
                     height: 50,
                     child: GestureDetector(
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '${place.name} '
-                              '(Favorito: ${place.isFavorite ? "Sí" : "No"})',
-                            ),
-                          ),
-                        );
-                      },
+                      onTap: () => _mostrarOpcionesLugar(place),
                       child: const Icon(
                         Icons.location_on,
                         color: Colors.redAccent,

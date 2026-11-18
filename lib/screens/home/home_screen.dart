@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../../services/auth_service.dart';
@@ -8,7 +7,6 @@ import '../profile/profile_screen.dart';
 import '../rutas_screen.dart';
 import './intinerario.dart';
 import '../../styles/app_colors.dart';
-import '../../styles/app_text_styles.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -150,21 +148,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: AppColors.accent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: AppColors.accent.withValues(alpha: 0.3),
                       ),
                     ),
-                    child: const Icon(
-                      Icons.explore_outlined,
-                      color: AppColors.accent,
-                      size: 26,
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.asset(
+                      'assets/images/icono.jpg',
+                      fit: BoxFit.cover,
                     ),
                   ),
                   const SizedBox(width: 10),
                   const Text(
-                    'Tlaxgo',
+                    'Tlax.Go',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 23,
@@ -207,7 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildHero(),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 18),
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -271,40 +268,52 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 26),
+                  const SizedBox(height: 28),
                   const Text(
-                    'Explora a tu manera',
-                    style: AppTextStyles.sectionTitle,
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Encuentra lugares y experiencias para tu próximo viaje.',
+                    'Inspiración para tu viaje',
                     style: TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 14,
-                      height: 1.4,
+                      color: AppColors.primary,
+                      fontSize: 21,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
+                  const SizedBox(height: 5),
+                  const Text(
+                    'Lugares que hacen única a Tlaxcala.',
+                    style: TextStyle(color: AppColors.muted, fontSize: 14),
+                  ),
                   const SizedBox(height: 16),
-                  _buildExploreCard(
-                    icon: Icons.map_outlined,
-                    title: 'Mapa turístico',
-                    subtitle: 'Descubre lugares cerca de ti',
-                    onTap: () => setState(() => _selectedIndex = 1),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildExploreCard(
-                    icon: Icons.favorite_border_rounded,
-                    title: 'Rutas favoritas',
-                    subtitle: 'Inspírate para tu próxima aventura',
-                    onTap: () => setState(() => _selectedIndex = 2),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildExploreCard(
-                    icon: Icons.calendar_month_rounded,
-                    title: 'Itinerarios',
-                    subtitle: 'Organiza tus próximos viajes',
-                    onTap: () => setState(() => _selectedIndex = 3),
+                  SizedBox(
+                    height: 205,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      clipBehavior: Clip.none,
+                      children: [
+                        _buildDestinationCard(
+                          category: 'ARTE E HISTORIA',
+                          title: 'Basílica de Ocotlán',
+                          subtitle: 'Un ícono de Tlaxcala',
+                          icon: Icons.church_rounded,
+                          colors: const [Color(0xFF175A76), Color(0xFF09283F)],
+                        ),
+                        const SizedBox(width: 14),
+                        _buildDestinationCard(
+                          category: 'NATURALEZA',
+                          title: 'La Malinche',
+                          subtitle: 'Aire libre y paisajes',
+                          icon: Icons.landscape_rounded,
+                          colors: const [Color(0xFF36765E), Color(0xFF153D3A)],
+                        ),
+                        const SizedBox(width: 14),
+                        _buildDestinationCard(
+                          category: 'CULTURA',
+                          title: 'Centro Histórico',
+                          subtitle: 'Plazas llenas de historia',
+                          icon: Icons.account_balance_rounded,
+                          colors: const [Color(0xFF9A6237), Color(0xFF542E32)],
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -381,22 +390,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   height: 1.4,
                 ),
               ),
-              const SizedBox(height: 18),
-              FilledButton.icon(
-                onPressed: () => setState(() => _selectedIndex = 1),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                  foregroundColor: AppColors.navy,
-                  minimumSize: const Size(0, 46),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  textStyle: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-                icon: const Icon(Icons.explore_outlined),
-                label: const Text('Explorar lugares'),
-              ),
             ],
           ),
         ],
@@ -404,58 +397,123 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildExploreCard({
-    required IconData icon,
+  Widget _buildDestinationCard({
+    required String category,
     required String title,
     required String subtitle,
-    required VoidCallback onTap,
+    required IconData icon,
+    required List<Color> colors,
   }) {
     return Material(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(18),
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(22),
       child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.all(15),
+        onTap: () => setState(() => _selectedIndex = 1),
+        borderRadius: BorderRadius.circular(22),
+        child: Ink(
+          width: 250,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: AppColors.accentDark, size: 25),
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: AppTextStyles.cardTitle),
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 16,
-                color: AppColors.mutedLight,
+            gradient: LinearGradient(
+              colors: colors,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: [
+              BoxShadow(
+                color: colors.last.withValues(alpha: 0.18),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
               ),
             ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(22),
+            child: Stack(
+              children: [
+                Positioned(
+                  top: -28,
+                  right: -20,
+                  child: Container(
+                    width: 150,
+                    height: 150,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.06),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 10,
+                  right: 12,
+                  child: Icon(
+                    icon,
+                    size: 96,
+                    color: Colors.white.withValues(alpha: 0.12),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          category,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.7,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          height: 1.1,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.76),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          const Icon(
+                            Icons.arrow_forward_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

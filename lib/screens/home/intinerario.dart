@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../styles/app_colors.dart';
@@ -21,7 +20,7 @@ class ItinerariosScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text(
           'Itinerarios',
@@ -36,33 +35,20 @@ class ItinerariosScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildIntroBanner(),
+            const SizedBox(height: 26),
             const Text(
-              'Descubre Tlaxcala',
-              style: TextStyle(
-                fontSize: 25,
-                fontWeight: FontWeight.w800,
-                color: AppColors.primary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Conoce diferentes recorridos turísticos y '
-              'descubre la historia, cultura y naturaleza '
-              'que Tlaxcala tiene para ofrecerte.',
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.5,
-                color: AppColors.muted,
-              ),
-            ),
-            const SizedBox(height: 25),
-            const Text(
-              'Recorridos recomendados',
+              'Recorridos para inspirarte',
               style: TextStyle(
                 fontSize: 19,
                 fontWeight: FontWeight.w800,
                 color: AppColors.primary,
               ),
+            ),
+            const SizedBox(height: 5),
+            const Text(
+              'Ideas para descubrir Tlaxcala a tu ritmo.',
+              style: TextStyle(fontSize: 13, color: AppColors.muted),
             ),
             const SizedBox(height: 16),
 
@@ -115,6 +101,78 @@ class ItinerariosScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildIntroBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.heroTop, AppColors.navy],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.heroBorder),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -10,
+            top: -12,
+            child: Icon(
+              Icons.route_rounded,
+              size: 112,
+              color: AppColors.accent.withValues(alpha: 0.1),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 11,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'VIAJES CON HISTORIA',
+                  style: TextStyle(
+                    color: AppColors.accentLight,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 17),
+              const Text(
+                'Tu próxima aventura\nempieza aquí',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 25,
+                  height: 1.15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 9),
+              const Text(
+                'Recorre la cultura, naturaleza y tradición de Tlaxcala.',
+                style: TextStyle(
+                  color: AppColors.heroText,
+                  fontSize: 13,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _mensaje(String mensaje, IconData icono) {
     return Container(
       width: double.infinity,
@@ -126,11 +184,7 @@ class ItinerariosScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(
-            icono,
-            size: 42,
-            color: AppColors.accentDark,
-          ),
+          Icon(icono, size: 42, color: AppColors.accentDark),
           const SizedBox(height: 12),
           Text(
             mensaje,
@@ -153,9 +207,7 @@ class ItinerariosScreen extends StatelessWidget {
         itinerario['description']?.toString() ??
         'Descubre este recorrido turístico de Tlaxcala.';
 
-    final dias = itinerario['days'] is List
-        ? itinerario['days'] as List
-        : [];
+    final dias = itinerario['days'] is List ? itinerario['days'] as List : [];
 
     int minutosTotales = 0;
     final lugares = <String>[];
@@ -193,90 +245,144 @@ class ItinerariosScreen extends StatelessWidget {
         : lugares.join(', ');
 
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 7),
+          ),
+        ],
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.map_rounded,
-                  color: AppColors.accentDark,
-                  size: 28,
-                ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF175A76), AppColors.navy],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Text(
-                  nombre,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: const Icon(
+                    Icons.map_rounded,
+                    color: Colors.white,
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        dias.isEmpty
+                            ? 'RECORRIDO RECOMENDADO'
+                            : '${dias.length} ${dias.length == 1 ? 'DÍA' : 'DÍAS'} DE RECORRIDO',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.72),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.7,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        nombre,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          height: 1.15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  descripcion,
                   style: const TextStyle(
-                    fontSize: 17,
+                    fontSize: 13,
+                    height: 1.5,
+                    color: AppColors.muted,
+                  ),
+                ),
+                const SizedBox(height: 15),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.09),
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.access_time_rounded,
+                        size: 18,
+                        color: AppColors.accentDark,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Duración aproximada: $duracion',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 15),
+                const Text(
+                  'Lugares del recorrido',
+                  style: TextStyle(
+                    fontSize: 13,
                     fontWeight: FontWeight.w800,
                     color: AppColors.primary,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            descripcion,
-            style: const TextStyle(
-              fontSize: 13,
-              height: 1.5,
-              color: AppColors.muted,
-            ),
-          ),
-          const SizedBox(height: 15),
-          Row(
-            children: [
-              const Icon(
-                Icons.access_time_rounded,
-                size: 18,
-                color: AppColors.accentDark,
-              ),
-              const SizedBox(width: 7),
-              Expanded(
-                child: Text(
-                  'Duración aproximada: $duracion',
+                const SizedBox(height: 7),
+                Text(
+                  lugaresTexto,
                   style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
+                    fontSize: 13,
+                    height: 1.5,
+                    color: AppColors.muted,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Lugares del recorrido:',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            lugaresTexto,
-            style: const TextStyle(
-              fontSize: 13,
-              height: 1.5,
-              color: AppColors.muted,
+              ],
             ),
           ),
         ],
