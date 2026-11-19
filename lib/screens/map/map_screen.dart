@@ -1,7 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/filter_option.dart';
 import '../../models/place.dart';
@@ -19,6 +22,7 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   final MapController _mapController = MapController();
+  final Set<String> _favoritos = {};
 
   LatLng? _currentPosition;
   bool _isLoadingLocation = false;
@@ -36,6 +40,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     super.initState();
     _allPlaces = PlacesService.getFallbackPlaces();
     _loadPlacesFromOverpass();
+    _cargarFavoritos();
   }
 
   Future<void> _loadPlacesFromOverpass() async {
@@ -76,7 +81,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     return _allPlaces.where((place) {
       final matchesCategory = switch (_activeCategory) {
         PlaceCategory.all => true,
-        PlaceCategory.favorites => place.isFavorite,
+        PlaceCategory.favorites => _favoritos.contains(place.id),
         _ => place.category == _activeCategory,
       };
 
@@ -91,6 +96,105 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           municipality.contains(normalizedQuery) ||
           category.contains(normalizedQuery);
     }).toList();
+  }
+
+  Future<void> _cargarFavoritos() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('favorites')
+          .get();
+
+      if (!mounted) return;
+
+      setState(() {
+        _favoritos
+          ..clear()
+          ..addAll(snapshot.docs.map((document) => document.id));
+      });
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudieron cargar los lugares favoritos: $error'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _toggleFavorito(Place place) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final referencia = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('favorites')
+        .doc(place.id);
+    final esFavorito = _favoritos.contains(place.id);
+
+    try {
+      if (esFavorito) {
+        await referencia.delete();
+      } else {
+        await referencia.set({
+          'type': 'place',
+          'name': place.name,
+          'category': place.category.name,
+          'latitude': place.location.latitude,
+          'longitude': place.location.longitude,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        if (esFavorito) {
+          _favoritos.remove(place.id);
+        } else {
+          _favoritos.add(place.id);
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            esFavorito
+                ? '${place.name} se quitó de lugares favoritos'
+                : '${place.name} se agregó a lugares favoritos',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo actualizar el lugar favorito: $error'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _abrirComoLlegar(Place place) async {
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1'
+      '&destination=${place.location.latitude},${place.location.longitude}'
+      '&travelmode=driving',
+    );
+
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo abrir la aplicación de mapas.'),
+        ),
+      );
+    }
   }
 
   Future<void> _getCurrentLocation() async {
@@ -244,7 +348,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   _animatedMapMove(_currentPosition!, 16.0);
                 }
               },
-              onTap: (_, __) {
+              onTap: (_, _) {
                 if (_selectedPlace != null) {
                   setState(() {
                     _selectedPlace = null;

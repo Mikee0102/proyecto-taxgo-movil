@@ -30,6 +30,20 @@ abstract final class AppTheme {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
     ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: AppColors.primary,
+      contentTextStyle: const TextStyle(
+        color: AppColors.surface,
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+      ),
+      actionTextColor: AppColors.accentLight,
+      closeIconColor: AppColors.surface,
+      elevation: 6,
+      behavior: SnackBarBehavior.floating,
+      insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         elevation: 0,
