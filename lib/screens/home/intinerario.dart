@@ -5,15 +5,10 @@ import '../../styles/app_colors.dart';
 class ItinerariosScreen extends StatelessWidget {
   const ItinerariosScreen({super.key});
 
-  // UID del administrador que publica los itinerarios desde la WEB.
-  static const String adminUid = 'zF3VlnHCltQnsped1wXfmIaMiZo1';
-
-  // Conexión con la misma colección utilizada por Tlax.Go WEB.
-  Stream<QuerySnapshot<Map<String, dynamic>>> _obtenerItinerarios() {
+  // Conexión con la colección global utilizada por Tlax.Go WEB.
+  Stream<QuerySnapshot> _obtenerItinerarios() {
     return FirebaseFirestore.instance
-        .collection('users')
-        .doc(adminUid)
-        .collection('itinerarios')
+        .collection('itineraries')
         .snapshots();
   }
 
@@ -53,7 +48,7 @@ class ItinerariosScreen extends StatelessWidget {
             const SizedBox(height: 16),
 
             // Escucha los cambios de Firebase en tiempo real.
-            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            StreamBuilder<QuerySnapshot>(
               stream: _obtenerItinerarios(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -85,7 +80,12 @@ class ItinerariosScreen extends StatelessWidget {
 
                 return Column(
                   children: documentos.map((documento) {
-                    final itinerario = documento.data();
+                    final rawData = documento.data();
+                    if (rawData is! Map) {
+                      return const SizedBox.shrink();
+                    }
+
+                    final itinerario = Map<String, dynamic>.from(rawData);
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),

@@ -7,24 +7,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/filter_option.dart';
+import '../../models/place.dart';
 import '../../widgets/filters.dart';
-
-// Modelo local de atractivos turísticos.
-class Place {
-  final String id;
-  final String name;
-  final PlaceCategory category;
-  final LatLng location;
-  final bool isFavorite;
-
-  const Place({
-    required this.id,
-    required this.name,
-    required this.category,
-    required this.location,
-    this.isFavorite = false,
-  });
-}
+import '../../widgets/map_search_bar.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -42,79 +27,113 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   bool _mapReady = false;
 
   PlaceCategory _activeCategory = PlaceCategory.all;
+  String _searchQuery = '';
 
-  // Atractivos turísticos de prueba.
+  // Atractivos turísticos de prueba (con municipio explícito o resuelto por coordenadas).
   final List<Place> _allPlaces = const [
     Place(
       id: '1',
       name: 'Museo Regional de Tlaxcala',
       category: PlaceCategory.museum,
       location: LatLng(19.3182, -98.2375),
+      municipality: 'Tlaxcala',
     ),
     Place(
       id: '2',
       name: 'Museo de Arte de Tlaxcala (MAT)',
       category: PlaceCategory.museum,
       location: LatLng(19.3220, -98.2450),
+      municipality: 'Tlaxcala',
     ),
     Place(
       id: '3',
       name: 'Basílica de Nuestra Señora de Ocotlán',
       category: PlaceCategory.church,
       location: LatLng(19.3250, -98.2300),
+      municipality: 'Tlaxcala',
     ),
     Place(
       id: '4',
       name: 'Ex Convento de San Francisco',
       category: PlaceCategory.church,
       location: LatLng(19.3140, -98.2360),
+      municipality: 'Tlaxcala',
     ),
     Place(
       id: '5',
       name: 'Parque Nacional La Malinche',
       category: PlaceCategory.park,
       location: LatLng(19.2300, -98.3000),
+      municipality: 'Teolocholco',
     ),
     Place(
       id: '6',
       name: 'Zócalo de Tlaxcala',
       category: PlaceCategory.park,
       location: LatLng(19.3175, -98.2381),
+      municipality: 'Tlaxcala',
     ),
     Place(
       id: '7',
       name: 'Mirador de Ocotlán',
       category: PlaceCategory.viewpoint,
       location: LatLng(19.3270, -98.2280),
+      municipality: 'Tlaxcala',
     ),
     Place(
       id: '8',
       name: 'Restaurante Los Portales',
       category: PlaceCategory.restaurant,
       location: LatLng(19.3150, -98.2400),
+      municipality: 'Tlaxcala',
     ),
     Place(
       id: '9',
       name: 'Hotel San Francisco Tlaxcala',
       category: PlaceCategory.hotel,
       location: LatLng(19.3160, -98.2350),
+      municipality: 'Tlaxcala',
     ),
   ];
 
+  String _normalizeText(String text) {
+    const accents = 'áéíóúüñÁÉÍÓÚÜÑ';
+    const plain = 'aeiouunAEIOUUN';
+    var normalized = text.toLowerCase().trim();
+    for (var i = 0; i < accents.length; i++) {
+      normalized = normalized.replaceAll(accents[i], plain[i]);
+    }
+    return normalized;
+  }
+
+  String _categoryLabel(PlaceCategory category) {
+    for (final opt in filterOptions) {
+      if (opt.id == category) return opt.label;
+    }
+    return '';
+  }
+
   List<Place> get _filteredPlaces {
-    if (_activeCategory == PlaceCategory.all) {
-      return _allPlaces;
-    }
+    final normalizedQuery = _normalizeText(_searchQuery);
 
-    if (_activeCategory == PlaceCategory.favorites) {
-      return _allPlaces
-          .where((place) => _favoritos.contains(place.id))
-          .toList();
-    }
+    return _allPlaces.where((place) {
+      final matchesCategory = switch (_activeCategory) {
+        PlaceCategory.all => true,
+        PlaceCategory.favorites => _favoritos.contains(place.id),
+        _ => place.category == _activeCategory,
+      };
 
-    return _allPlaces
-        .where((place) => place.category == _activeCategory)
-        .toList();
+      if (!matchesCategory) return false;
+      if (normalizedQuery.isEmpty) return true;
+
+      final name = _normalizeText(place.name);
+      final municipality = _normalizeText(place.resolvedMunicipality);
+      final category = _normalizeText(_categoryLabel(place.category));
+
+      return name.contains(normalizedQuery) ||
+          municipality.contains(normalizedQuery) ||
+          category.contains(normalizedQuery);
+    }).toList();
   }
 
   @override
@@ -285,7 +304,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     });
 
     try {
-      // Comprobar si el servicio de ubicación está activado.
       final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
       if (!serviceEnabled) {
@@ -294,7 +312,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         );
       }
 
-      // Comprobar permisos.
       LocationPermission permission = await Geolocator.checkPermission();
 
       if (permission == LocationPermission.denied) {
@@ -311,7 +328,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         );
       }
 
-      // Obtener la ubicación actual.
       final Position position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
@@ -331,7 +347,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         _isLoading = false;
       });
 
-      // Centrar el mapa cuando esté listo.
       if (_mapReady) {
         _animatedMapMove(currentLatLng, 16.0);
       }
@@ -413,13 +428,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   @override
-  void dispose() {
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final List<Place> currentPlaces = _filteredPlaces;
+    final double topOffset = MediaQuery.of(context).padding.top + 12;
 
     return Scaffold(
       body: Stack(
@@ -443,7 +454,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 userAgentPackageName: 'com.example.tlaxgomobil',
               ),
 
-              // Marcadores turísticos según el filtro seleccionado.
               MarkerLayer(
                 markers: currentPlaces.map((place) {
                   return Marker(
@@ -462,7 +472,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 }).toList(),
               ),
 
-              // Marcador de ubicación actual.
               if (_currentPosition != null)
                 MarkerLayer(
                   markers: [
@@ -481,22 +490,35 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ],
           ),
 
-          // Filtros turísticos.
+          // Barra de búsqueda y chips de categorías.
           Positioned(
-            top: MediaQuery.of(context).padding.top + 12,
-            left: 0,
-            right: 0,
-            child: Filters(
-              activeCategory: _activeCategory,
-              onCategoryChange: (newCategory) {
-                setState(() {
-                  _activeCategory = newCategory;
-                });
-              },
+            top: topOffset,
+            left: 16,
+            right: 16,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                MapSearchBar(
+                  value: _searchQuery,
+                  onChanged: (newValue) {
+                    setState(() {
+                      _searchQuery = newValue;
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+                Filters(
+                  activeCategory: _activeCategory,
+                  onCategoryChange: (newCategory) {
+                    setState(() {
+                      _activeCategory = newCategory;
+                    });
+                  },
+                ),
+              ],
             ),
           ),
 
-          // Mensaje cuando no existen resultados.
           if (currentPlaces.isEmpty)
             Center(
               child: Container(
@@ -529,7 +551,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'No se encontraron lugares en esta categoría.',
+                      'No se encontraron lugares con ese filtro o municipio.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.grey, fontSize: 13),
                     ),
@@ -538,7 +560,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               ),
             ),
 
-          // Indicador de carga.
           if (_isLoading)
             const Center(
               child: Card(
