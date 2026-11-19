@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../../services/auth_service.dart';
@@ -5,6 +6,7 @@ import '../../models/user_model.dart';
 import '../map/map_screen.dart';
 import '../profile/profile_screen.dart';
 import '../rutas_screen.dart';
+import './intinerario.dart';
 import '../../styles/app_colors.dart';
 import '../../styles/app_text_styles.dart';
 
@@ -58,6 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const MapScreen(),
               const RutasScreen(),
+              const ItinerariosScreen(),
               ProfileScreen(onReturn: () => setState(() => _selectedIndex = 0)),
             ],
           ),
@@ -105,6 +108,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icon(Icons.route_outlined),
                   selectedIcon: Icon(Icons.route_rounded),
                   label: 'Rutas',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.calendar_month_outlined),
+                  selectedIcon: Icon(Icons.calendar_month_rounded),
+                  label: 'Itinerarios',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.person_outline_rounded),
@@ -290,6 +298,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     title: 'Rutas favoritas',
                     subtitle: 'Inspírate para tu próxima aventura',
                     onTap: () => setState(() => _selectedIndex = 2),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildExploreCard(
+                    icon: Icons.calendar_month_rounded,
+                    title: 'Itinerarios',
+                    subtitle: 'Organiza tus próximos viajes',
+                    onTap: () => setState(() => _selectedIndex = 3),
                   ),
                 ],
               ),
