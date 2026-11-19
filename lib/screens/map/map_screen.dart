@@ -5,8 +5,10 @@ import 'package:geolocator/geolocator.dart';
 
 import '../../models/filter_option.dart';
 import '../../models/place.dart';
+import '../../services/places_service.dart';
 import '../../widgets/filters.dart';
 import '../../widgets/map_search_bar.dart';
+import '../../widgets/place_detail_card.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -19,81 +21,37 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   final MapController _mapController = MapController();
 
   LatLng? _currentPosition;
-  bool _isLoading = false;
+  bool _isLoadingLocation = false;
+  bool _isLoadingPlaces = true;
   bool _mapReady = false;
 
   PlaceCategory _activeCategory = PlaceCategory.all;
   String _searchQuery = '';
+  Place? _selectedPlace;
 
-  // Atractivos turísticos de prueba (con municipio explícito o resuelto por coordenadas).
-  final List<Place> _allPlaces = const [
-    Place(
-      id: '1',
-      name: 'Museo Regional de Tlaxcala',
-      category: PlaceCategory.museum,
-      location: LatLng(19.3182, -98.2375),
-      municipality: 'Tlaxcala',
-    ),
-    Place(
-      id: '2',
-      name: 'Museo de Arte de Tlaxcala (MAT)',
-      category: PlaceCategory.museum,
-      location: LatLng(19.3220, -98.2450),
-      municipality: 'Tlaxcala',
-    ),
-    Place(
-      id: '3',
-      name: 'Basílica de Nuestra Señora de Ocotlán',
-      category: PlaceCategory.church,
-      location: LatLng(19.3250, -98.2300),
-      municipality: 'Tlaxcala',
-      isFavorite: true,
-    ),
-    Place(
-      id: '4',
-      name: 'Ex Convento de San Francisco',
-      category: PlaceCategory.church,
-      location: LatLng(19.3140, -98.2360),
-      municipality: 'Tlaxcala',
-    ),
-    Place(
-      id: '5',
-      name: 'Parque Nacional La Malinche',
-      category: PlaceCategory.park,
-      location: LatLng(19.2300, -98.3000),
-      municipality: 'Teolocholco',
-    ),
-    Place(
-      id: '6',
-      name: 'Zócalo de Tlaxcala',
-      category: PlaceCategory.park,
-      location: LatLng(19.3175, -98.2381),
-      municipality: 'Tlaxcala',
-      isFavorite: true,
-    ),
-    Place(
-      id: '7',
-      name: 'Mirador de Ocotlán',
-      category: PlaceCategory.viewpoint,
-      location: LatLng(19.3270, -98.2280),
-      municipality: 'Tlaxcala',
-    ),
-    Place(
-      id: '8',
-      name: 'Restaurante Los Portales',
-      category: PlaceCategory.restaurant,
-      location: LatLng(19.3150, -98.2400),
-      municipality: 'Tlaxcala',
-      isFavorite: true,
-    ),
-    Place(
-      id: '9',
-      name: 'Hotel San Francisco Tlaxcala',
-      category: PlaceCategory.hotel,
-      location: LatLng(19.3160, -98.2350),
-      municipality: 'Tlaxcala',
-    ),
-  ];
+  List<Place> _allPlaces = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _allPlaces = PlacesService.getFallbackPlaces();
+    _loadPlacesFromOverpass();
+  }
+
+  Future<void> _loadPlacesFromOverpass() async {
+    setState(() {
+      _isLoadingPlaces = true;
+    });
+
+    final places = await PlacesService.fetchPlacesFromOverpass();
+
+    if (!mounted) return;
+
+    setState(() {
+      _allPlaces = places;
+      _isLoadingPlaces = false;
+    });
+  }
 
   String _normalizeText(String text) {
     const accents = 'áéíóúüñÁÉÍÓÚÜÑ';
@@ -136,10 +94,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _getCurrentLocation() async {
-    if (_isLoading) return;
+    if (_isLoadingLocation) return;
 
     setState(() {
-      _isLoading = true;
+      _isLoadingLocation = true;
     });
 
     try {
@@ -183,7 +141,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
       setState(() {
         _currentPosition = currentLatLng;
-        _isLoading = false;
+        _isLoadingLocation = false;
       });
 
       if (_mapReady) {
@@ -207,7 +165,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       if (!mounted) return;
 
       setState(() {
-        _isLoading = false;
+        _isLoadingLocation = false;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -278,12 +236,19 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             mapController: _mapController,
             options: MapOptions(
               initialCenter: const LatLng(19.3182, -98.2375),
-              initialZoom: 13.0,
+              initialZoom: 12.0,
               onMapReady: () {
                 _mapReady = true;
 
                 if (_currentPosition != null) {
                   _animatedMapMove(_currentPosition!, 16.0);
+                }
+              },
+              onTap: (_, __) {
+                if (_selectedPlace != null) {
+                  setState(() {
+                    _selectedPlace = null;
+                  });
                 }
               },
             ),
@@ -295,25 +260,23 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
               MarkerLayer(
                 markers: currentPlaces.map((place) {
+                  final isSelected = _selectedPlace?.id == place.id;
                   return Marker(
                     point: place.location,
                     width: 44,
                     height: 50,
                     child: GestureDetector(
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '${place.name} · ${place.resolvedMunicipality} '
-                              '(Favorito: ${place.isFavorite ? "Sí" : "No"})',
-                            ),
-                          ),
-                        );
+                        setState(() {
+                          _selectedPlace = place;
+                        });
                       },
-                      child: const Icon(
+                      child: Icon(
                         Icons.location_on,
-                        color: Colors.redAccent,
-                        size: 40,
+                        color: isSelected
+                            ? Colors.lightBlueAccent
+                            : Colors.redAccent,
+                        size: isSelected ? 46 : 40,
                       ),
                     ),
                   );
@@ -338,7 +301,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ],
           ),
 
-          // Barra de búsqueda y chips de categorías.
+          // Barra de búsqueda, filtros y estado de carga de Overpass.
           Positioned(
             top: topOffset,
             left: 16,
@@ -360,14 +323,56 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   onCategoryChange: (newCategory) {
                     setState(() {
                       _activeCategory = newCategory;
+                      _selectedPlace = null;
                     });
                   },
                 ),
+                if (_isLoadingPlaces)
+                  Container(
+                    margin: const EdgeInsets.only(top: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xE6020617),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFF1E293B)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.lightBlueAccent,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Cargando atractivos de Tlaxcala...',
+                          style: TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),
 
-          if (currentPlaces.isEmpty)
+          // Tarjeta de detalle y botón "Cómo llegar" al tocar un puntito.
+          PlaceDetailCard(
+            place: _selectedPlace,
+            onClose: () {
+              setState(() {
+                _selectedPlace = null;
+              });
+            },
+          ),
+
+          if (!_isLoadingPlaces && currentPlaces.isEmpty)
             Center(
               child: Container(
                 padding: const EdgeInsets.all(20),
@@ -408,7 +413,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               ),
             ),
 
-          if (_isLoading)
+          if (_isLoadingLocation)
             const Center(
               child: Card(
                 child: Padding(
