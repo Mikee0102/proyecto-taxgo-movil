@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../styles/app_colors.dart';
 
 class MapSearchBar extends StatelessWidget {
   final String value;
@@ -14,12 +15,12 @@ class MapSearchBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xE6020617),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF1E293B)),
+        border: Border.all(color: AppColors.border),
         boxShadow: const [
           BoxShadow(
-            color: Colors.black38,
+            color: Colors.black12,
             blurRadius: 12,
             offset: Offset(0, 4),
           ),
@@ -33,18 +34,44 @@ class MapSearchBar extends StatelessWidget {
           ),
         ),
         onChanged: onChanged,
-        style: const TextStyle(color: Colors.white, fontSize: 14),
+        style: const TextStyle(
+          color: AppColors.primary,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+        cursorColor: AppColors.navy,
         decoration: InputDecoration(
+          filled: true,
+          fillColor: Colors.white,
           hintText: 'Buscar lugar o municipio (ej. Tlaxcala, Huamantla)...',
-          hintStyle: const TextStyle(color: Colors.white54, fontSize: 13),
-          prefixIcon: const Icon(Icons.search, color: Colors.lightBlueAccent),
+          hintStyle: const TextStyle(
+            color: AppColors.muted,
+            fontSize: 13,
+            fontWeight: FontWeight.normal,
+          ),
+          prefixIcon: const Icon(Icons.search, color: AppColors.navy),
           suffixIcon: value.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white54, size: 20),
+                  icon: const Icon(
+                    Icons.close,
+                    color: AppColors.muted,
+                    size: 20,
+                  ),
                   onPressed: () => onChanged(''),
                 )
               : null,
-          border: InputBorder.none,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: AppColors.navy, width: 1.5),
+          ),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 14,
