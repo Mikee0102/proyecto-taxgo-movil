@@ -167,10 +167,11 @@ class AuthService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } else {
-      await userRef.update({
-        if (avatarUrl != null) 'avatarUrl': avatarUrl,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      final data = <String, Object?>{'updatedAt': FieldValue.serverTimestamp()};
+      if (avatarUrl != null) {
+        data['avatarUrl'] = avatarUrl;
+      }
+      await userRef.update(data);
     }
   }
 
