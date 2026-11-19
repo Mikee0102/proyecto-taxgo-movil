@@ -8,6 +8,7 @@ import '../../models/place.dart';
 import '../../services/places_service.dart';
 import '../../widgets/filters.dart';
 import '../../widgets/map_search_bar.dart';
+import '../../widgets/place_detail_card.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -26,6 +27,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   PlaceCategory _activeCategory = PlaceCategory.all;
   String _searchQuery = '';
+  Place? _selectedPlace;
 
   List<Place> _allPlaces = [];
 
@@ -242,6 +244,13 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   _animatedMapMove(_currentPosition!, 16.0);
                 }
               },
+              onTap: (_, __) {
+                if (_selectedPlace != null) {
+                  setState(() {
+                    _selectedPlace = null;
+                  });
+                }
+              },
             ),
             children: [
               TileLayer(
@@ -251,24 +260,23 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
               MarkerLayer(
                 markers: currentPlaces.map((place) {
+                  final isSelected = _selectedPlace?.id == place.id;
                   return Marker(
                     point: place.location,
                     width: 44,
                     height: 50,
                     child: GestureDetector(
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '${place.name} · ${place.resolvedMunicipality}',
-                            ),
-                          ),
-                        );
+                        setState(() {
+                          _selectedPlace = place;
+                        });
                       },
-                      child: const Icon(
+                      child: Icon(
                         Icons.location_on,
-                        color: Colors.redAccent,
-                        size: 40,
+                        color: isSelected
+                            ? Colors.lightBlueAccent
+                            : Colors.redAccent,
+                        size: isSelected ? 46 : 40,
                       ),
                     ),
                   );
@@ -315,6 +323,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   onCategoryChange: (newCategory) {
                     setState(() {
                       _activeCategory = newCategory;
+                      _selectedPlace = null;
                     });
                   },
                 ),
@@ -351,6 +360,16 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   ),
               ],
             ),
+          ),
+
+          // Tarjeta de detalle y botón "Cómo llegar" al tocar un puntito.
+          PlaceDetailCard(
+            place: _selectedPlace,
+            onClose: () {
+              setState(() {
+                _selectedPlace = null;
+              });
+            },
           ),
 
           if (!_isLoadingPlaces && currentPlaces.isEmpty)
