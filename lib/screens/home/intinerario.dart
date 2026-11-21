@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../styles/app_colors.dart';
 
 class ItinerariosScreen extends StatelessWidget {
-  const ItinerariosScreen({super.key});
+  const ItinerariosScreen({super.key, this.isAdmin = false});
+
+  final bool isAdmin;
 
   // Conexión con la colección global utilizada por Tlax.Go WEB.
   Stream<QuerySnapshot> _obtenerItinerarios() {
-    return FirebaseFirestore.instance
-        .collection('itineraries')
-        .snapshots();
+    return FirebaseFirestore.instance.collection('itineraries').snapshots();
   }
 
   @override
@@ -24,6 +25,14 @@ class ItinerariosScreen extends StatelessWidget {
         backgroundColor: AppColors.navy,
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          if (isAdmin)
+            IconButton(
+              tooltip: 'Crear itinerario',
+              onPressed: () => _abrirFormulario(context),
+              icon: const Icon(Icons.add_rounded),
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -99,6 +108,19 @@ class ItinerariosScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _abrirFormulario(BuildContext context) async {
+    final creado = await showDialog<bool>(
+      context: context,
+      builder: (context) => const _CrearItinerarioDialog(),
+    );
+
+    if (creado == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Itinerario publicado para todos.')),
+      );
+    }
   }
 
   Widget _buildIntroBanner() {
@@ -402,3 +424,136 @@ class ItinerariosScreen extends StatelessWidget {
     return '$horas h $restantes min';
   }
 }
+
+class _CrearItinerarioDialog extends StatefulWidget {
+  const _CrearItinerarioDialog();
+
+  @override
+  State<_CrearItinerarioDialog> createState() => _CrearItinerarioDialogState();
+}
+
+class _CrearItinerarioDialogState extends State<_CrearItinerarioDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _activitiesController = TextEditingController();
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _activitiesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _publicar() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inicia sesión para publicar.')),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    final activities = _activitiesController.text
+        .split('\n')
+        .map((activity) => activity.trim())
+        .where((activity) => activity.isNotEmpty)
+        .map((activity) => {'title': activity, 'duration_minutes': 60})
+        .toList();
+
+    try {
+      await FirebaseFirestore.instance.collection('itineraries').add({
+        'title': _titleController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'days': activities.isEmpty
+            ? <Map<String, dynamic>>[]
+            : [
+                {'title': 'Día 1', 'activities': activities},
+              ],
+        'createdBy': user.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo publicar el itinerario: $error')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Crear itinerario'),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _titleController,
+                  decoration: const InputDecoration(labelText: 'Título'),
+                  textCapitalization: TextCapitalization.sentences,
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Escribe un título.'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _descriptionController,
+                  decoration: const InputDecoration(labelText: 'Descripción'),
+                  textCapitalization: TextCapitalization.sentences,
+                  maxLines: 3,
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Escribe una descripción.'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _activitiesController,
+                  decoration: const InputDecoration(
+                    labelText: 'Actividades o lugares',
+                    hintText: 'Un lugar por línea (opcional)',
+                    helperText: 'Cada actividad se estima en 60 minutos.',
+                    alignLabelWithHint: true,
+                  ),
+                  textCapitalization: TextCapitalization.sentences,
+                  maxLines: 4,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSaving ? null : () => Navigator.of(context).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _isSaving ? null : _publicar,
+          child: _isSaving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Publicar'),
+        ),
+      ],
+    );
+  }
+}
+

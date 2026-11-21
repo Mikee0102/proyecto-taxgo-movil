@@ -4,7 +4,6 @@ import '../../services/auth_service.dart';
 import '../../models/user_model.dart';
 import '../map/map_screen.dart';
 import '../profile/profile_screen.dart';
-import '../rutas_screen.dart';
 import './intinerario.dart';
 import '../../styles/app_colors.dart';
 
@@ -41,6 +40,9 @@ class _HomeScreenState extends State<HomeScreen> {
       stream: authService.streamUserProfile(user.uid),
       builder: (context, snapshot) {
         final profile = snapshot.data;
+        final role =
+            profile?.role ??
+            (user.uid == UserModel.adminUid ? 'admin' : 'user');
         final name = profile?.name.isNotEmpty == true
             ? profile!.name
             : user.displayName ?? 'Viajero';
@@ -54,11 +56,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 name: name,
                 email: user.email ?? 'Sin correo registrado',
                 avatarUrl: avatarUrl,
-                role: profile?.role ?? 'user',
               ),
               const MapScreen(),
-              const RutasScreen(),
-              const ItinerariosScreen(),
+              ItinerariosScreen(isAdmin: role == 'admin'),
               ProfileScreen(onReturn: () => setState(() => _selectedIndex = 0)),
             ],
           ),
@@ -103,11 +103,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   label: 'Mapa',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.route_outlined),
-                  selectedIcon: Icon(Icons.route_rounded),
-                  label: 'Rutas',
-                ),
-                NavigationDestination(
                   icon: Icon(Icons.calendar_month_outlined),
                   selectedIcon: Icon(Icons.calendar_month_rounded),
                   label: 'Itinerarios',
@@ -129,7 +124,6 @@ class _HomeScreenState extends State<HomeScreen> {
     required String name,
     required String email,
     required String? avatarUrl,
-    required String role,
   }) {
     final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
 
@@ -257,13 +251,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          Icons.verified_rounded,
-                          color: AppColors.accent,
-                          size: 20,
-                          semanticLabel: 'Rol: $role',
                         ),
                       ],
                     ),

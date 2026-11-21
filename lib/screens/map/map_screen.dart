@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
@@ -23,11 +27,14 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   final MapController _mapController = MapController();
   final Set<String> _favoritos = {};
+  final Connectivity _connectivity = Connectivity();
 
   LatLng? _currentPosition;
   bool _isLoadingLocation = false;
   bool _isLoadingPlaces = true;
   bool _mapReady = false;
+  bool? _hasNetworkConnection;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   PlaceCategory _activeCategory = PlaceCategory.all;
   String _searchQuery = '';
@@ -41,6 +48,62 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     _allPlaces = PlacesService.getFallbackPlaces();
     _loadPlacesFromOverpass();
     _cargarFavoritos();
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
+      _handleConnectivityChanged,
+    );
+    _checkConnectivity();
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _checkConnectivity() async {
+    try {
+      final results = await _connectivity.checkConnectivity();
+      if (!mounted) return;
+      _updateConnectivity(results, notify: false);
+    } on PlatformException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo comprobar la conexión: ${error.message}'),
+        ),
+      );
+    }
+  }
+
+  void _handleConnectivityChanged(List<ConnectivityResult> results) {
+    _updateConnectivity(results);
+  }
+
+  void _updateConnectivity(
+    List<ConnectivityResult> results, {
+    bool notify = true,
+  }) {
+    final isConnected = results.any(
+      (result) => result != ConnectivityResult.none,
+    );
+    final previous = _hasNetworkConnection;
+    if (previous == isConnected) return;
+
+    setState(() => _hasNetworkConnection = isConnected);
+
+    if (!notify || previous == null) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            isConnected
+                ? 'Conexión restablecida.'
+                : 'Sin conexión. El mapa puede no cargarse.',
+          ),
+        ),
+      );
   }
 
   Future<void> _loadPlacesFromOverpass() async {
@@ -431,6 +494,29 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     });
                   },
                 ),
+                if (_hasNetworkConnection == false)
+                  Container(
+                    margin: const EdgeInsets.only(top: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 9,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xE6A33224),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.wifi_off_rounded, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text(
+                          'Sin conexión. El mapa puede no cargarse.',
+                          style: TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
                 if (_isLoadingPlaces)
                   Container(
                     margin: const EdgeInsets.only(top: 10),
