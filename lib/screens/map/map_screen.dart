@@ -13,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/filter_option.dart';
 import '../../models/place.dart';
 import '../../services/places_service.dart';
+import '../../styles/app_colors.dart';
 import '../../widgets/filters.dart';
 import '../../widgets/map_search_bar.dart';
 import '../../widgets/place_detail_card.dart';
@@ -34,6 +35,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   bool _isLoadingPlaces = true;
   bool _mapReady = false;
   bool? _hasNetworkConnection;
+  int? _refreshPointer;
+  double? _refreshStartY;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   PlaceCategory _activeCategory = PlaceCategory.all;
@@ -121,6 +124,36 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     });
   }
 
+  void _handleRefreshPointerDown(PointerDownEvent event) {
+    if (event.position.dy <= 40) {
+      _refreshPointer = event.pointer;
+      _refreshStartY = event.position.dy;
+    }
+  }
+
+  void _handleRefreshPointerUp(PointerUpEvent event) {
+    if (_refreshPointer != event.pointer) return;
+
+    final shouldRefresh =
+        event.position.dy - (_refreshStartY ?? event.position.dy) >= 100;
+    _refreshPointer = null;
+    _refreshStartY = null;
+
+    if (shouldRefresh && !_isLoadingPlaces) {
+      _refreshMap();
+    }
+  }
+
+  void _handleRefreshPointerCancel(PointerCancelEvent event) {
+    if (_refreshPointer != event.pointer) return;
+    _refreshPointer = null;
+    _refreshStartY = null;
+  }
+
+  Future<void> _refreshMap() async {
+    await Future.wait<void>([_loadPlacesFromOverpass(), _cargarFavoritos()]);
+  }
+
   String _normalizeText(String text) {
     const accents = 'áéíóúüñÁÉÍÓÚÜÑ';
     const plain = 'aeiouunAEIOUUN';
@@ -191,7 +224,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   Future<void> _toggleFavorito(Place place) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inicia sesión para guardar favoritos.')),
+      );
+      return;
+    }
 
     final referencia = FirebaseFirestore.instance
         .collection('users')
@@ -394,238 +432,277 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final List<Place> currentPlaces = _filteredPlaces;
+    final selectedPlace = _selectedPlace;
     final double topOffset = MediaQuery.of(context).padding.top + 12;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: const LatLng(19.3182, -98.2375),
-              initialZoom: 12.0,
-              onMapReady: () {
-                _mapReady = true;
+      body: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: _handleRefreshPointerDown,
+        onPointerUp: _handleRefreshPointerUp,
+        onPointerCancel: _handleRefreshPointerCancel,
+        child: Stack(
+          children: [
+            FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: const LatLng(19.3182, -98.2375),
+                initialZoom: 12.0,
+                onMapReady: () {
+                  _mapReady = true;
 
-                if (_currentPosition != null) {
-                  _animatedMapMove(_currentPosition!, 16.0);
-                }
-              },
-              onTap: (_, _) {
-                if (_selectedPlace != null) {
-                  setState(() {
-                    _selectedPlace = null;
-                  });
-                }
-              },
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.tlaxgomobil',
-              ),
-
-              MarkerLayer(
-                markers: currentPlaces.map((place) {
-                  final isSelected = _selectedPlace?.id == place.id;
-                  return Marker(
-                    point: place.location,
-                    width: 44,
-                    height: 50,
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedPlace = place;
-                        });
-                      },
-                      child: Icon(
-                        Icons.location_on,
-                        color: isSelected
-                            ? Colors.lightBlueAccent
-                            : Colors.redAccent,
-                        size: isSelected ? 46 : 40,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-
-              if (_currentPosition != null)
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: _currentPosition!,
-                      width: 50,
-                      height: 50,
-                      child: const Icon(
-                        Icons.my_location,
-                        color: Colors.blueAccent,
-                        size: 40,
-                      ),
-                    ),
-                  ],
-                ),
-            ],
-          ),
-
-          // Barra de búsqueda, filtros y estado de carga de Overpass.
-          Positioned(
-            top: topOffset,
-            left: 16,
-            right: 16,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                MapSearchBar(
-                  value: _searchQuery,
-                  onChanged: (newValue) {
+                  if (_currentPosition != null) {
+                    _animatedMapMove(_currentPosition!, 16.0);
+                  }
+                },
+                onTap: (_, _) {
+                  if (_selectedPlace != null) {
                     setState(() {
-                      _searchQuery = newValue;
-                    });
-                  },
-                ),
-                const SizedBox(height: 10),
-                Filters(
-                  activeCategory: _activeCategory,
-                  onCategoryChange: (newCategory) {
-                    setState(() {
-                      _activeCategory = newCategory;
                       _selectedPlace = null;
                     });
-                  },
+                  }
+                },
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.tlaxgomobil',
                 ),
-                if (_hasNetworkConnection == false)
-                  Container(
-                    margin: const EdgeInsets.only(top: 10),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 9,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xE6A33224),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.wifi_off_rounded, color: Colors.white),
-                        SizedBox(width: 8),
-                        Text(
-                          'Sin conexión. El mapa puede no cargarse.',
-                          style: TextStyle(color: Colors.white, fontSize: 12),
+
+                MarkerLayer(
+                  markers: currentPlaces.map((place) {
+                    final isSelected = _selectedPlace?.id == place.id;
+                    return Marker(
+                      point: place.location,
+                      width: 44,
+                      height: 50,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selectedPlace = place;
+                          });
+                        },
+                        child: Icon(
+                          Icons.location_on,
+                          color: isSelected
+                              ? Colors.lightBlueAccent
+                              : Colors.redAccent,
+                          size: isSelected ? 46 : 40,
                         ),
-                      ],
-                    ),
-                  ),
-                if (_isLoadingPlaces)
-                  Container(
-                    margin: const EdgeInsets.only(top: 10),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xE6020617),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF1E293B)),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.lightBlueAccent,
-                          ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+
+                if (_currentPosition != null)
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: _currentPosition!,
+                        width: 50,
+                        height: 50,
+                        child: const Icon(
+                          Icons.my_location,
+                          color: Colors.blueAccent,
+                          size: 40,
                         ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Cargando atractivos de Tlaxcala...',
-                          style: TextStyle(color: Colors.white, fontSize: 12),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
               ],
             ),
-          ),
 
-          // Tarjeta de detalle y botón "Cómo llegar" al tocar un puntito.
-          PlaceDetailCard(
-            place: _selectedPlace,
-            onClose: () {
-              setState(() {
-                _selectedPlace = null;
-              });
-            },
-          ),
-
-          if (!_isLoadingPlaces && currentPlaces.isEmpty)
-            Center(
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                margin: const EdgeInsets.symmetric(horizontal: 32),
-                decoration: BoxDecoration(
-                  color: const Color(0xE6020617),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF1E293B)),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black45,
-                      blurRadius: 10,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.search_off, size: 48, color: Colors.grey),
-                    SizedBox(height: 12),
-                    Text(
-                      'No hay resultados',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+            // Barra de búsqueda, filtros y estado de carga de Overpass.
+            Positioned(
+              top: topOffset,
+              left: 16,
+              right: 16,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  MapSearchBar(
+                    value: _searchQuery,
+                    onChanged: (newValue) {
+                      setState(() {
+                        _searchQuery = newValue;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  Filters(
+                    activeCategory: _activeCategory,
+                    onCategoryChange: (newCategory) {
+                      setState(() {
+                        _activeCategory = newCategory;
+                        _selectedPlace = null;
+                      });
+                    },
+                  ),
+                  if (_hasNetworkConnection == false)
+                    Container(
+                      margin: const EdgeInsets.only(top: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 9,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xE6A33224),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.wifi_off_rounded, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text(
+                            'Sin conexión. El mapa puede no cargarse.',
+                            style: TextStyle(color: Colors.white, fontSize: 12),
+                          ),
+                        ],
                       ),
                     ),
-                    SizedBox(height: 4),
-                    Text(
-                      'No se encontraron lugares con ese filtro o municipio.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                  if (_isLoadingPlaces)
+                    Container(
+                      margin: const EdgeInsets.only(top: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xE6020617),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFF1E293B)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.lightBlueAccent,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Cargando atractivos de Tlaxcala...',
+                            style: TextStyle(color: Colors.white, fontSize: 12),
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
+                ],
               ),
             ),
 
-          if (_isLoadingLocation)
-            const Center(
-              child: Card(
-                child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Column(
+            // Tarjeta de detalle y botón "Cómo llegar" al tocar un puntito.
+            PlaceDetailCard(
+              place: selectedPlace,
+              isFavorite:
+                  selectedPlace != null &&
+                  _favoritos.contains(selectedPlace.id),
+              onToggleFavorite: () {
+                if (selectedPlace != null) {
+                  _toggleFavorito(selectedPlace);
+                }
+              },
+              onClose: () {
+                setState(() {
+                  _selectedPlace = null;
+                });
+              },
+            ),
+
+            if (!_isLoadingPlaces && currentPlaces.isEmpty)
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  margin: const EdgeInsets.symmetric(horizontal: 32),
+                  decoration: BoxDecoration(
+                    color: const Color(0xE6020617),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFF1E293B)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black45,
+                        blurRadius: 10,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(),
+                      Icon(Icons.search_off, size: 48, color: Colors.grey),
                       SizedBox(height: 12),
-                      Text('Obteniendo ubicación...'),
+                      Text(
+                        'No hay resultados',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'No se encontraron lugares con ese filtro o municipio.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
                     ],
                   ),
                 ),
               ),
-            ),
-        ],
+
+            if (_isLoadingLocation)
+              const Center(
+                child: Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 12),
+                        Text('Obteniendo ubicación...'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
 
-      floatingActionButton: FloatingActionButton(
-        onPressed: _getCurrentLocation,
-        tooltip: 'Mi ubicación actual',
-        child: const Icon(Icons.navigation),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.small(
+            heroTag: 'refreshMap',
+            onPressed: _isLoadingPlaces ? null : _refreshMap,
+            tooltip: 'Actualizar mapa',
+            backgroundColor: AppColors.accent,
+            foregroundColor: AppColors.navy,
+            child: _isLoadingPlaces
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.navy,
+                    ),
+                  )
+                : const Icon(Icons.refresh_rounded),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton(
+            heroTag: 'currentLocation',
+            onPressed: _getCurrentLocation,
+            tooltip: 'Mi ubicación actual',
+            child: const Icon(Icons.navigation),
+          ),
+        ],
       ),
     );
   }
