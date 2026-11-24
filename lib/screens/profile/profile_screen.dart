@@ -25,6 +25,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   final ImagePicker _picker = ImagePicker();
 
+  Future<void> _refreshProfile(String uid) async {
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo actualizar el perfil: $e')),
+      );
+    }
+  }
+
   Future<void> _changeName(String currentName) async {
     var enteredName = currentName;
     final newName = await showDialog<String>(
@@ -208,262 +224,280 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
         return Scaffold(
           appBar: AppBar(title: const Text('Mi perfil'), centerTitle: true),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppColors.heroTop, AppColors.navy],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+          body: RefreshIndicator(
+            onRefresh: () => _refreshProfile(user.uid),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AppColors.heroTop, AppColors.navy],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(26),
+                      border: Border.all(color: AppColors.heroBorder),
                     ),
-                    borderRadius: BorderRadius.circular(26),
-                    border: Border.all(color: AppColors.heroBorder),
-                  ),
-                  child: Stack(
-                    children: [
-                      Positioned(
-                        top: -45,
-                        right: -38,
-                        child: Container(
-                          width: 150,
-                          height: 150,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppColors.accent.withValues(alpha: 0.08),
+                    child: Stack(
+                      children: [
+                        Positioned(
+                          top: -45,
+                          right: -38,
+                          child: Container(
+                            width: 150,
+                            height: 150,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.accent.withValues(alpha: 0.08),
+                            ),
                           ),
                         ),
-                      ),
-                      SizedBox(
-                        width: double.infinity,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Stack(
-                              alignment: Alignment.bottomRight,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: AppColors.accent.withValues(
-                                        alpha: 0.7,
+                        SizedBox(
+                          width: double.infinity,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Stack(
+                                alignment: Alignment.bottomRight,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: AppColors.accent.withValues(
+                                          alpha: 0.7,
+                                        ),
+                                        width: 2,
                                       ),
-                                      width: 2,
+                                    ),
+                                    child: CircleAvatar(
+                                      radius: 48,
+                                      backgroundColor: AppColors.surface
+                                          .withValues(alpha: 0.12),
+                                      backgroundImage: hasAvatar
+                                          ? NetworkImage(avatarUrl)
+                                          : null,
+                                      child: !hasAvatar
+                                          ? const Icon(
+                                              Icons.person_rounded,
+                                              size: 52,
+                                              color: Colors.white,
+                                            )
+                                          : null,
                                     ),
                                   ),
-                                  child: CircleAvatar(
-                                    radius: 48,
-                                    backgroundColor: AppColors.surface
-                                        .withValues(alpha: 0.12),
-                                    backgroundImage: hasAvatar
-                                        ? NetworkImage(avatarUrl)
-                                        : null,
-                                    child: !hasAvatar
-                                        ? const Icon(
-                                            Icons.person_rounded,
-                                            size: 52,
-                                            color: Colors.white,
-                                          )
-                                        : null,
-                                  ),
-                                ),
-                                Material(
-                                  color: AppColors.accent,
-                                  shape: const CircleBorder(),
-                                  child: IconButton(
-                                    onPressed: _uploadingImage
-                                        ? null
-                                        : _changePhoto,
-                                    tooltip: 'Cambiar foto',
-                                    constraints: const BoxConstraints.tightFor(
-                                      width: 38,
-                                      height: 38,
-                                    ),
-                                    padding: EdgeInsets.zero,
-                                    icon: _uploadingImage
-                                        ? const SizedBox(
-                                            width: 17,
-                                            height: 17,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: AppColors.navy,
-                                            ),
-                                          )
-                                        : const Icon(
-                                            Icons.camera_alt_rounded,
-                                            color: AppColors.navy,
-                                            size: 19,
+                                  Material(
+                                    color: AppColors.accent,
+                                    shape: const CircleBorder(),
+                                    child: IconButton(
+                                      onPressed: _uploadingImage
+                                          ? null
+                                          : _changePhoto,
+                                      tooltip: 'Cambiar foto',
+                                      constraints:
+                                          const BoxConstraints.tightFor(
+                                            width: 38,
+                                            height: 38,
                                           ),
+                                      padding: EdgeInsets.zero,
+                                      icon: _uploadingImage
+                                          ? const SizedBox(
+                                              width: 17,
+                                              height: 17,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: AppColors.navy,
+                                              ),
+                                            )
+                                          : const Icon(
+                                              Icons.camera_alt_rounded,
+                                              color: AppColors.navy,
+                                              size: 19,
+                                            ),
+                                    ),
                                   ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
                                 ),
-                              ],
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                email,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: AppColors.heroText,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextButton.icon(
+                                onPressed: _uploadingImage
+                                    ? null
+                                    : _changePhoto,
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                ),
+                                icon: const Icon(Icons.photo_library_outlined),
+                                label: const Text('Cambiar foto de perfil'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 26),
+                  const Text(
+                    'Información de la cuenta',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.04),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        ListTile(
+                          contentPadding: const EdgeInsets.fromLTRB(
+                            16,
+                            8,
+                            10,
+                            8,
+                          ),
+                          leading: Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: AppColors.accent.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(13),
                             ),
-                            const SizedBox(height: 16),
-                            Text(
+                            child: const Icon(
+                              Icons.person_outline_rounded,
+                              color: AppColors.accentDark,
+                            ),
+                          ),
+                          title: const Text(
+                            'Nombre de usuario',
+                            style: TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 12,
+                            ),
+                          ),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
                               name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
                               style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
-                            const SizedBox(height: 5),
-                            Text(
+                          ),
+                          trailing: IconButton(
+                            tooltip: 'Editar nombre',
+                            onPressed: _savingName
+                                ? null
+                                : () => _changeName(name),
+                            icon: const Icon(
+                              Icons.edit_outlined,
+                              color: AppColors.accentDark,
+                            ),
+                          ),
+                        ),
+                        if (_savingName)
+                          const LinearProgressIndicator(minHeight: 2),
+                        Divider(height: 1, color: AppColors.border),
+                        ListTile(
+                          contentPadding: const EdgeInsets.fromLTRB(
+                            16,
+                            8,
+                            16,
+                            8,
+                          ),
+                          leading: Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: AppColors.accent.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(13),
+                            ),
+                            child: const Icon(
+                              Icons.email_outlined,
+                              color: AppColors.accentDark,
+                            ),
+                          ),
+                          title: const Text(
+                            'Correo electrónico',
+                            style: TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 12,
+                            ),
+                          ),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
                               email,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
                               style: const TextStyle(
-                                color: AppColors.heroText,
-                                fontSize: 13,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
-                            const SizedBox(height: 12),
-                            TextButton.icon(
-                              onPressed: _uploadingImage ? null : _changePhoto,
-                              style: TextButton.styleFrom(
-                                foregroundColor: Colors.white,
-                              ),
-                              icon: const Icon(Icons.photo_library_outlined),
-                              label: const Text('Cambiar foto de perfil'),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 26),
-                const Text(
-                  'Información de la cuenta',
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.border),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.04),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      ListTile(
-                        contentPadding: const EdgeInsets.fromLTRB(16, 8, 10, 8),
-                        leading: Container(
-                          width: 42,
-                          height: 42,
-                          decoration: BoxDecoration(
-                            color: AppColors.accent.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(13),
-                          ),
-                          child: const Icon(
-                            Icons.person_outline_rounded,
-                            color: AppColors.accentDark,
-                          ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    height: 52,
+                    child: OutlinedButton.icon(
+                      onPressed:
+                          widget.onReturn ?? () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      label: const Text('Regresar al inicio'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.inputBorder),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        title: const Text(
-                          'Nombre de usuario',
-                          style: TextStyle(
-                            color: AppColors.muted,
-                            fontSize: 12,
-                          ),
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            name,
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        trailing: IconButton(
-                          tooltip: 'Editar nombre',
-                          onPressed: _savingName
-                              ? null
-                              : () => _changeName(name),
-                          icon: const Icon(
-                            Icons.edit_outlined,
-                            color: AppColors.accentDark,
-                          ),
-                        ),
-                      ),
-                      if (_savingName)
-                        const LinearProgressIndicator(minHeight: 2),
-                      Divider(height: 1, color: AppColors.border),
-                      ListTile(
-                        contentPadding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                        leading: Container(
-                          width: 42,
-                          height: 42,
-                          decoration: BoxDecoration(
-                            color: AppColors.accent.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(13),
-                          ),
-                          child: const Icon(
-                            Icons.email_outlined,
-                            color: AppColors.accentDark,
-                          ),
-                        ),
-                        title: const Text(
-                          'Correo electrónico',
-                          style: TextStyle(
-                            color: AppColors.muted,
-                            fontSize: 12,
-                          ),
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            email,
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  height: 52,
-                  child: OutlinedButton.icon(
-                    onPressed: widget.onReturn ?? () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back_rounded),
-                    label: const Text('Regresar al inicio'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.inputBorder),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );

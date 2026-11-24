@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../services/auth_service.dart';
 import '../../models/user_model.dart';
@@ -16,6 +17,22 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+
+  Future<void> _refreshHome(String uid) async {
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo actualizar el inicio: $error')),
+      );
+    }
+  }
 
   Future<void> _signOut() async {
     await AuthService().signOut();
@@ -56,6 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 name: name,
                 email: user.email ?? 'Sin correo registrado',
                 avatarUrl: avatarUrl,
+                onRefresh: () => _refreshHome(user.uid),
               ),
               const MapScreen(),
               ItinerariosScreen(isAdmin: role == 'admin'),
@@ -124,188 +142,202 @@ class _HomeScreenState extends State<HomeScreen> {
     required String name,
     required String email,
     required String? avatarUrl,
+    required Future<void> Function() onRefresh,
   }) {
     final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
 
     return SafeArea(
       bottom: false,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              color: AppColors.navy,
-              padding: const EdgeInsets.fromLTRB(20, 10, 14, 20),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: AppColors.accent.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Image.asset(
-                      'assets/images/icono.jpg',
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'Tlax.Go',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 23,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.accent.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      '60 municipios',
-                      style: TextStyle(
-                        color: AppColors.accent,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    tooltip: 'Cerrar sesión',
-                    onPressed: _signOut,
-                    icon: const Icon(Icons.logout_rounded),
-                    color: Colors.white70,
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildHero(),
-                  const SizedBox(height: 18),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 25,
-                          backgroundColor: AppColors.accent.withValues(
-                            alpha: 0.14,
-                          ),
-                          backgroundImage: hasAvatar
-                              ? NetworkImage(avatarUrl)
-                              : null,
-                          child: hasAvatar
-                              ? null
-                              : const Icon(
-                                  Icons.person_rounded,
-                                  color: AppColors.navy,
-                                  size: 28,
-                                ),
+      child: RefreshIndicator(
+        onRefresh: onRefresh,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                color: AppColors.navy,
+                padding: const EdgeInsets.fromLTRB(20, 10, 14, 20),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: AppColors.accent.withValues(alpha: 0.3),
                         ),
-                        const SizedBox(width: 13),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '¡Hola, $name!',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: AppColors.primary,
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w800,
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Image.asset(
+                        'assets/images/icono.jpg',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Tlax.Go',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 23,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        '60 municipios',
+                        style: TextStyle(
+                          color: AppColors.accent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      tooltip: 'Cerrar sesión',
+                      onPressed: _signOut,
+                      icon: const Icon(Icons.logout_rounded),
+                      color: Colors.white70,
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildHero(),
+                    const SizedBox(height: 18),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 25,
+                            backgroundColor: AppColors.accent.withValues(
+                              alpha: 0.14,
+                            ),
+                            backgroundImage: hasAvatar
+                                ? NetworkImage(avatarUrl)
+                                : null,
+                            child: hasAvatar
+                                ? null
+                                : const Icon(
+                                    Icons.person_rounded,
+                                    color: AppColors.navy,
+                                    size: 28,
+                                  ),
+                          ),
+                          const SizedBox(width: 13),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '¡Hola, $name!',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                email,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: AppColors.muted,
-                                  fontSize: 12,
+                                const SizedBox(height: 3),
+                                Text(
+                                  email,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: AppColors.muted,
+                                    fontSize: 12,
+                                  ),
                                 ),
-                              ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    const Text(
+                      'Inspiración para tu viaje',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    const Text(
+                      'Lugares que hacen única a Tlaxcala.',
+                      style: TextStyle(color: AppColors.muted, fontSize: 14),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 205,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        clipBehavior: Clip.none,
+                        children: [
+                          _buildDestinationCard(
+                            category: 'ARTE E HISTORIA',
+                            title: 'Basílica de Ocotlán',
+                            subtitle: 'Un ícono de Tlaxcala',
+                            icon: Icons.church_rounded,
+                            colors: const [
+                              Color(0xFF175A76),
+                              Color(0xFF09283F),
                             ],
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 14),
+                          _buildDestinationCard(
+                            category: 'NATURALEZA',
+                            title: 'La Malinche',
+                            subtitle: 'Aire libre y paisajes',
+                            icon: Icons.landscape_rounded,
+                            colors: const [
+                              Color(0xFF36765E),
+                              Color(0xFF153D3A),
+                            ],
+                          ),
+                          const SizedBox(width: 14),
+                          _buildDestinationCard(
+                            category: 'CULTURA',
+                            title: 'Centro Histórico',
+                            subtitle: 'Plazas llenas de historia',
+                            icon: Icons.account_balance_rounded,
+                            colors: const [
+                              Color(0xFF9A6237),
+                              Color(0xFF542E32),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 28),
-                  const Text(
-                    'Inspiración para tu viaje',
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 21,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  const Text(
-                    'Lugares que hacen única a Tlaxcala.',
-                    style: TextStyle(color: AppColors.muted, fontSize: 14),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 205,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      clipBehavior: Clip.none,
-                      children: [
-                        _buildDestinationCard(
-                          category: 'ARTE E HISTORIA',
-                          title: 'Basílica de Ocotlán',
-                          subtitle: 'Un ícono de Tlaxcala',
-                          icon: Icons.church_rounded,
-                          colors: const [Color(0xFF175A76), Color(0xFF09283F)],
-                        ),
-                        const SizedBox(width: 14),
-                        _buildDestinationCard(
-                          category: 'NATURALEZA',
-                          title: 'La Malinche',
-                          subtitle: 'Aire libre y paisajes',
-                          icon: Icons.landscape_rounded,
-                          colors: const [Color(0xFF36765E), Color(0xFF153D3A)],
-                        ),
-                        const SizedBox(width: 14),
-                        _buildDestinationCard(
-                          category: 'CULTURA',
-                          title: 'Centro Histórico',
-                          subtitle: 'Plazas llenas de historia',
-                          icon: Icons.account_balance_rounded,
-                          colors: const [Color(0xFF9A6237), Color(0xFF542E32)],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

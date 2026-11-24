@@ -4,17 +4,20 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/filter_option.dart';
 import '../models/place.dart';
+import '../styles/app_colors.dart';
 
 class PlaceDetailCard extends StatelessWidget {
   final Place? place;
   final VoidCallback onClose;
-  final VoidCallback? onToggleFavorite;
+  final bool isFavorite;
+  final VoidCallback onToggleFavorite;
 
   const PlaceDetailCard({
     super.key,
     required this.place,
     required this.onClose,
-    this.onToggleFavorite,
+    required this.isFavorite,
+    required this.onToggleFavorite,
   });
 
   String _categoryLabel(PlaceCategory category) {
@@ -79,7 +82,9 @@ class PlaceDetailCard extends StatelessWidget {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Enlace y detalles del lugar copiados al portapapeles.'),
+          content: Text(
+            'Enlace y detalles del lugar copiados al portapapeles.',
+          ),
           duration: Duration(seconds: 2),
         ),
       );
@@ -98,18 +103,23 @@ class PlaceDetailCard extends StatelessWidget {
     return Positioned(
       bottom: 16,
       left: 16,
-      right: 84, // Deja espacio limpio a la derecha para el FloatingActionButton
+      right:
+          84, // Deja espacio limpio a la derecha para el FloatingActionButton
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: const Color(0xF2020617),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF1E293B)),
-          boxShadow: const [
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xF5142038), Color(0xF5060B1D)],
+          ),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+          boxShadow: [
             BoxShadow(
-              color: Colors.black54,
-              blurRadius: 16,
-              offset: Offset(0, 6),
+              color: Colors.black.withValues(alpha: 0.42),
+              blurRadius: 24,
+              offset: const Offset(0, 9),
             ),
           ],
         ),
@@ -117,61 +127,67 @@ class PlaceDetailCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Fila superior: Badge de categoría y botones de acción
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF082F49),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: const Color(0xFF0C4A6E)),
-                  ),
-                  child: Text(
-                    '$iconEmoji  ${categoryText.toUpperCase()}',
-                    style: const TextStyle(
-                      color: Colors.lightBlueAccent,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.6,
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF082F49),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: AppColors.accent.withValues(alpha: 0.24),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(iconEmoji, style: const TextStyle(fontSize: 15)),
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: Text(
+                            categoryText.toUpperCase(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.accentLight,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.55,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 Row(
                   children: [
                     _ActionIconButton(
-                      icon: Icons.share,
+                      icon: Icons.ios_share_rounded,
                       tooltip: 'Compartir',
                       onTap: () => _sharePlace(context, currentPlace),
                     ),
                     const SizedBox(width: 6),
                     _ActionIconButton(
-                      icon: currentPlace.isFavorite
-                          ? Icons.favorite
-                          : Icons.favorite_border,
-                      iconColor: currentPlace.isFavorite
-                          ? Colors.pinkAccent
+                      icon: isFavorite
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
+                      iconColor: isFavorite
+                          ? const Color(0xFFFF6B8A)
                           : Colors.white70,
+                      backgroundColor: isFavorite
+                          ? const Color(0xFF482136)
+                          : null,
                       tooltip: 'Favorito',
-                      onTap: onToggleFavorite ??
-                          () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Favoritos sincronizados próximamente.',
-                                ),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                          },
+                      onTap: onToggleFavorite,
                     ),
                     const SizedBox(width: 6),
                     _ActionIconButton(
-                      icon: Icons.close,
+                      icon: Icons.close_rounded,
                       tooltip: 'Cerrar',
                       onTap: onClose,
                     ),
@@ -180,81 +196,86 @@ class PlaceDetailCard extends StatelessWidget {
               ],
             ),
 
-            const SizedBox(height: 10),
-
-            // Nombre del lugar
+            const SizedBox(height: 13),
             Text(
               currentPlace.name,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 16,
+                fontSize: 19,
                 fontWeight: FontWeight.w800,
-                height: 1.2,
+                height: 1.18,
               ),
             ),
-
-            const SizedBox(height: 6),
-
-            // Municipio y ubicación en Tlaxcala
+            const SizedBox(height: 11),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.055),
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.location_on_rounded,
+                    size: 18,
+                    color: AppColors.accentLight,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '$municipality, Tlaxcala',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
             Row(
               children: [
                 const Icon(
-                  Icons.location_on,
-                  size: 15,
-                  color: Colors.lightBlueAccent,
+                  Icons.my_location_rounded,
+                  size: 13,
+                  color: Colors.white38,
                 ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    '$municipality, Tlaxcala',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
+                const SizedBox(width: 5),
+                Text(
+                  '${currentPlace.location.latitude.toStringAsFixed(4)}, '
+                  '${currentPlace.location.longitude.toStringAsFixed(4)}',
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 11,
+                    letterSpacing: 0.2,
                   ),
                 ),
               ],
             ),
-
-            const SizedBox(height: 4),
-
-            // Coordenadas de referencia
-            Text(
-              'Coords: ${currentPlace.location.latitude.toStringAsFixed(4)}, '
-              '${currentPlace.location.longitude.toStringAsFixed(4)}',
-              style: const TextStyle(
-                color: Colors.white38,
-                fontSize: 11,
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // Botón Cómo llegar
+            const SizedBox(height: 13),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton.icon(
+              child: FilledButton.icon(
                 onPressed: () => _openDirections(context, currentPlace),
-                icon: const Icon(Icons.near_me, size: 16),
+                icon: const Icon(Icons.directions_rounded, size: 19),
                 label: const Text(
                   'Cómo llegar',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0EA5E9),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 11),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: AppColors.navy,
+                  minimumSize: const Size.fromHeight(46),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(999),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  elevation: 4,
                 ),
               ),
             ),
@@ -268,32 +289,31 @@ class PlaceDetailCard extends StatelessWidget {
 class _ActionIconButton extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
+  final Color? backgroundColor;
   final String tooltip;
   final VoidCallback onTap;
 
   const _ActionIconButton({
     required this.icon,
     this.iconColor = Colors.white70,
+    this.backgroundColor,
     required this.tooltip,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0F172A),
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFF1E293B)),
-          ),
-          child: Icon(icon, size: 16, color: iconColor),
-        ),
+    return IconButton(
+      onPressed: onTap,
+      tooltip: tooltip,
+      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+      padding: EdgeInsets.zero,
+      icon: Icon(icon, size: 17),
+      style: IconButton.styleFrom(
+        foregroundColor: iconColor,
+        backgroundColor: backgroundColor ?? const Color(0xFF0F172A),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        shape: const CircleBorder(),
       ),
     );
   }

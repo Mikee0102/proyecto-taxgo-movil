@@ -8,6 +8,11 @@ import '../models/place.dart';
 
 class PlacesService {
   static const String _tlaxcalaBbox = '19.1000,-98.5000,19.6000,-97.9000';
+  static const List<String> _overpassEndpoints = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+  ];
+  static List<Place>? _lastSuccessfulPlaces;
 
   static PlaceCategory _mapOsmTagToCategory(Map<String, dynamic> tags) {
     if (tags['tourism'] == 'museum') return PlaceCategory.museum;
@@ -24,83 +29,105 @@ class PlacesService {
   }
 
   static Future<List<Place>> fetchPlacesFromOverpass() async {
-    const query = '''
-      [out:json][timeout:25];
+    const query =
+        '''
+      [out:json][timeout:15];
       (
-        node["tourism"~"museum|viewpoint|hotel|guest_house"]($_tlaxcalaBbox);
-        node["amenity"~"place_of_worship|restaurant|cafe"]($_tlaxcalaBbox);
+        node["tourism"~"^(museum|viewpoint|hotel|guest_house)\$"]($_tlaxcalaBbox);
+        node["amenity"~"^(place_of_worship|restaurant|cafe)\$"]($_tlaxcalaBbox);
         node["leisure"="park"]($_tlaxcalaBbox);
-        way["tourism"~"museum|viewpoint|hotel|guest_house"]($_tlaxcalaBbox);
-        way["amenity"~"place_of_worship|restaurant|cafe"]($_tlaxcalaBbox);
+        way["tourism"~"^(museum|viewpoint|hotel|guest_house)\$"]($_tlaxcalaBbox);
+        way["amenity"~"^(place_of_worship|restaurant|cafe)\$"]($_tlaxcalaBbox);
         way["leisure"="park"]($_tlaxcalaBbox);
       );
       out center;
     ''';
 
-    final uri = Uri.parse(
-      'https://overpass-api.de/api/interpreter?data=${Uri.encodeComponent(query)}',
-    );
+    for (final endpoint in _overpassEndpoints) {
+      try {
+        final response = await http
+            .post(
+              Uri.parse(endpoint),
+              headers: const {'User-Agent': 'TlaxGo/1.0'},
+              body: {'data': query},
+            )
+            .timeout(const Duration(seconds: 15));
 
-    try {
-      final response = await http.get(uri).timeout(const Duration(seconds: 25));
+        if (response.statusCode != 200) {
+          debugPrint(
+            'Overpass respondió ${response.statusCode} desde $endpoint.',
+          );
+          continue;
+        }
 
-      if (response.statusCode != 200) {
-        debugPrint(
-          'Overpass API respondió con estado: ${response.statusCode}. Usando fallback local.',
-        );
-        return getFallbackPlaces();
+        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+        if (decoded is! Map<String, dynamic> || decoded['elements'] is! List) {
+          debugPrint('Overpass devolvió una respuesta con formato inválido.');
+          continue;
+        }
+
+        final places = <Place>[];
+        for (final raw in decoded['elements'] as List<dynamic>) {
+          if (raw is! Map<String, dynamic>) continue;
+
+          final tagsValue = raw['tags'];
+          final tags = tagsValue is Map<String, dynamic>
+              ? tagsValue
+              : <String, dynamic>{};
+          final name = (tags['name'] ?? tags['official_name'] ?? '')
+              .toString()
+              .trim();
+          if (name.isEmpty) continue;
+
+          final centerValue = raw['center'];
+          final center = centerValue is Map<String, dynamic>
+              ? centerValue
+              : null;
+          final latitude = raw['lat'] ?? center?['lat'];
+          final longitude = raw['lon'] ?? center?['lon'];
+          if (latitude is! num || longitude is! num) continue;
+
+          final location = LatLng(latitude.toDouble(), longitude.toDouble());
+          final osmMun =
+              (tags['addr:municipality'] ??
+                      tags['addr:city'] ??
+                      tags['addr:town'] ??
+                      tags['addr:village'] ??
+                      '')
+                  .toString()
+                  .trim();
+          final id = raw['id']?.toString();
+          if (id == null) continue;
+
+          places.add(
+            Place(
+              id: id,
+              name: name,
+              category: _mapOsmTagToCategory(tags),
+              location: location,
+              municipality: osmMun.isNotEmpty
+                  ? osmMun
+                  : resolveClosestMunicipality(location),
+            ),
+          );
+        }
+
+        if (places.isEmpty) {
+          debugPrint('Overpass no encontró lugares con nombre.');
+          continue;
+        }
+
+        _lastSuccessfulPlaces = List.unmodifiable(places);
+        return _lastSuccessfulPlaces!;
+      } on Exception catch (error) {
+        debugPrint('No se pudo consultar Overpass en $endpoint: $error');
       }
-
-      final decoded =
-          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final elements = decoded['elements'] as List<dynamic>? ?? [];
-
-      if (elements.isEmpty) return getFallbackPlaces();
-
-      final places = <Place>[];
-
-      for (final raw in elements) {
-        if (raw is! Map<String, dynamic>) continue;
-
-        final tags = (raw['tags'] as Map<String, dynamic>?) ?? {};
-        final name =
-            (tags['name'] ?? tags['official_name'] ?? '').toString().trim();
-        if (name.isEmpty) continue;
-
-        final center = raw['center'] as Map<String, dynamic>?;
-        final lat = (raw['lat'] ?? center?['lat']) as num?;
-        final lon = (raw['lon'] ?? center?['lon']) as num?;
-        if (lat == null || lon == null) continue;
-
-        final location = LatLng(lat.toDouble(), lon.toDouble());
-        final osmMun = (tags['addr:municipality'] ??
-                tags['addr:city'] ??
-                tags['addr:town'] ??
-                tags['addr:village'] ??
-                '')
-            .toString()
-            .trim();
-
-        places.add(
-          Place(
-            id: raw['id'].toString(),
-            name: name,
-            category: _mapOsmTagToCategory(tags),
-            location: location,
-            municipality: osmMun.isNotEmpty
-                ? osmMun
-                : resolveClosestMunicipality(location),
-          ),
-        );
-      }
-
-      return places.isEmpty ? getFallbackPlaces() : places;
-    } catch (e) {
-      debugPrint(
-        'Error al conectar con Overpass API. Usando fallback local: $e',
-      );
-      return getFallbackPlaces();
     }
+
+    debugPrint(
+      'No se pudo cargar Overpass; se usará la última lista disponible.',
+    );
+    return _lastSuccessfulPlaces ?? getFallbackPlaces();
   }
 
   static List<Place> getFallbackPlaces() {
