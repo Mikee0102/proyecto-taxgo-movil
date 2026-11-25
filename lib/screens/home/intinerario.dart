@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,7 +16,7 @@ class ItinerariosScreen extends StatefulWidget {
 
 class _ItinerariosScreenState extends State<ItinerariosScreen> {
   bool _mostrarSoloMeGusta = false;
-  final Set<String> _meGustaEnProceso = {};
+  final Map<String, Map<String, bool>> _meGustaPendiente = {};
   late final Stream<QuerySnapshot> _streamItinerarios = FirebaseFirestore
       .instance
       .collection('itineraries')
@@ -35,11 +37,11 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
     );
   }
 
-  Future<void> _toggleMeGusta({
+  void _toggleMeGusta({
     required String itineraryId,
     required String title,
     required bool isLiked,
-  }) async {
+  }) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -48,47 +50,64 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
       return;
     }
 
-    if (!_meGustaEnProceso.add(itineraryId)) return;
-    setState(() {});
-
     final favoriteRef = FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
         .collection('favorites')
         .doc('itinerary_$itineraryId');
 
+    final shouldLike = !isLiked;
+    final write = shouldLike
+        ? favoriteRef.set({
+            'type': 'itinerary',
+            'itineraryId': itineraryId,
+            'title': title,
+            'createdAt': FieldValue.serverTimestamp(),
+          })
+        : favoriteRef.delete();
+
+    setState(() {
+      (_meGustaPendiente[user.uid] ??= {})[itineraryId] = shouldLike;
+    });
+    unawaited(_confirmarMeGusta(write, user.uid, itineraryId, shouldLike));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          shouldLike
+              ? '"$title" se guardó en tus me gusta.'
+              : 'Se quitó "$title" de tus me gusta.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmarMeGusta(
+    Future<void> write,
+    String uid,
+    String itineraryId,
+    bool shouldLike,
+  ) async {
     try {
-      if (isLiked) {
-        await favoriteRef.delete();
-      } else {
-        await favoriteRef.set({
-          'type': 'itinerary',
-          'itineraryId': itineraryId,
-          'title': title,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+      await write;
+      if (!mounted) return;
+      if (_meGustaPendiente[uid]?[itineraryId] == shouldLike) {
+        setState(() => _meGustaPendiente[uid]?.remove(itineraryId));
+      }
+    } catch (error) {
+      if (!mounted) {
+        debugPrint('No se pudo sincronizar el me gusta: $error');
+        return;
       }
 
-      if (!mounted) return;
+      setState(() {
+        if (_meGustaPendiente[uid]?[itineraryId] == shouldLike) {
+          _meGustaPendiente[uid]?.remove(itineraryId);
+        }
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            isLiked
-                ? 'Se quitó "$title" de tus me gusta.'
-                : '"$title" se guardó en tus me gusta.',
-          ),
-        ),
+        SnackBar(content: Text('No se pudo actualizar el me gusta: $error')),
       );
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se pudo actualizar el me gusta: $error')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _meGustaEnProceso.remove(itineraryId));
-      }
     }
   }
 
@@ -271,9 +290,6 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                             documento.id,
                             itinerario,
                             isLiked: isLiked,
-                            isUpdating: _meGustaEnProceso.contains(
-                              documento.id,
-                            ),
                           ),
                         );
                       }).toList(),
@@ -312,6 +328,16 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                               .toSet() ??
                           <String>{};
 
+                      final pendingLikes =
+                          _meGustaPendiente[user.uid] ?? <String, bool>{};
+                      for (final entry in pendingLikes.entries) {
+                        if (entry.value) {
+                          likedIds.add(entry.key);
+                        } else {
+                          likedIds.remove(entry.key);
+                        }
+                      }
+
                       return buildCards(likedIds);
                     },
                   );
@@ -327,12 +353,25 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
   Future<void> _abrirFormulario(BuildContext context) async {
     final creado = await showDialog<bool>(
       context: context,
-      builder: (context) => const _CrearItinerarioDialog(),
+      builder: (_) => _CrearItinerarioDialog(
+        onSyncError: (error) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('No se pudo sincronizar el itinerario: $error'),
+            ),
+          );
+        },
+      ),
     );
 
     if (creado == true && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Itinerario publicado para todos.')),
+        const SnackBar(
+          content: Text(
+            'Itinerario agregado. Si estás sin conexión, se sincronizará al recuperarla.',
+          ),
+        ),
       );
     }
   }
@@ -441,7 +480,6 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
     String itineraryId,
     Map<String, dynamic> itinerario, {
     required bool isLiked,
-    required bool isUpdating,
   }) {
     final nombre = itinerario['title']?.toString() ?? 'Sin título';
 
@@ -569,13 +607,11 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                       tooltip: isLiked
                           ? 'Quitar de mis me gusta'
                           : 'Agregar a mis me gusta',
-                      onPressed: isUpdating
-                          ? null
-                          : () => _toggleMeGusta(
-                              itineraryId: itineraryId,
-                              title: nombre,
-                              isLiked: isLiked,
-                            ),
+                      onPressed: () => _toggleMeGusta(
+                        itineraryId: itineraryId,
+                        title: nombre,
+                        isLiked: isLiked,
+                      ),
                       style: IconButton.styleFrom(
                         foregroundColor: isLiked
                             ? const Color(0xFFFF6B8A)
@@ -585,20 +621,11 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                             : Colors.white.withValues(alpha: 0.12),
                         shape: const CircleBorder(),
                       ),
-                      icon: isUpdating
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.accentLight,
-                              ),
-                            )
-                          : Icon(
-                              isLiked
-                                  ? Icons.favorite_rounded
-                                  : Icons.favorite_border_rounded,
-                            ),
+                      icon: Icon(
+                        isLiked
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                      ),
                     ),
                   ],
                 ),
@@ -1035,7 +1062,9 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
 }
 
 class _CrearItinerarioDialog extends StatefulWidget {
-  const _CrearItinerarioDialog();
+  const _CrearItinerarioDialog({required this.onSyncError});
+
+  final ValueChanged<Object> onSyncError;
 
   @override
   State<_CrearItinerarioDialog> createState() => _CrearItinerarioDialogState();
@@ -1076,26 +1105,39 @@ class _CrearItinerarioDialogState extends State<_CrearItinerarioDialog> {
         .toList();
 
     try {
-      await FirebaseFirestore.instance.collection('itineraries').add({
-        'title': _titleController.text.trim(),
-        'description': _descriptionController.text.trim(),
-        'days': activities.isEmpty
-            ? <Map<String, dynamic>>[]
-            : [
-                {'title': 'Día 1', 'activities': activities},
-              ],
-        'createdBy': user.uid,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      final write = FirebaseFirestore.instance
+          .collection('itineraries')
+          .doc()
+          .set({
+            'title': _titleController.text.trim(),
+            'description': _descriptionController.text.trim(),
+            'days': activities.isEmpty
+                ? <Map<String, dynamic>>[]
+                : [
+                    {'title': 'Día 1', 'activities': activities},
+                  ],
+            'createdBy': user.uid,
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
 
-      if (mounted) Navigator.of(context).pop(true);
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+      unawaited(_confirmarPublicacion(write));
     } catch (error) {
       if (!mounted) return;
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('No se pudo publicar el itinerario: $error')),
       );
+    }
+  }
+
+  Future<void> _confirmarPublicacion(Future<void> write) async {
+    try {
+      await write;
+    } catch (error) {
+      widget.onSyncError(error);
     }
   }
 

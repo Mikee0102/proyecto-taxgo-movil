@@ -13,5 +13,10 @@ Aplicación Flutter de Tlax.Go conectada a Firebase.
 - Los itinerarios se guardan en la colección global `itineraries`; la app los
   escucha en tiempo real y pueden consultarse desde la web usando la misma
   colección de Firestore.
+- La persistencia local de Firestore está habilitada en Android: los itinerarios
+  que ya se descargaron pueden consultarse sin conexión. Las publicaciones y
+  favoritos hechos sin conexión se guardan localmente y se sincronizan al
+  recuperar internet. El primer acceso a itinerarios requiere conexión, y la
+  sincronización puede ser rechazada si las reglas no autorizan la operación.
 - Publica las reglas con `firebase deploy --only firestore:rules` para habilitar
   la lectura compartida y restringir la escritura a administradores.
