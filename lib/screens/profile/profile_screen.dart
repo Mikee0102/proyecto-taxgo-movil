@@ -1,9 +1,8 @@
-import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../services/auth_service.dart';
@@ -119,50 +118,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 85,
-        maxWidth: 800,
+        imageQuality: 70,
+        maxWidth: 300,
+        maxHeight: 300,
       );
 
       if (image == null) return;
 
-      final extension = image.path.split('.').last.toLowerCase();
+      setState(() => _uploadingImage = true);
 
-      final contentType = switch (extension) {
-        'jpg' => 'image/jpeg',
-        'jpeg' => 'image/jpeg',
-        'png' => 'image/png',
-        'webp' => 'image/webp',
-        'gif' => 'image/gif',
-        _ => null,
-      };
+      // La foto se reduce a 300 px y se guarda como texto (base64)
+      // directamente en Firestore, sin usar Firebase Storage.
+      final bytes = await image.readAsBytes();
+      final avatarData = 'data:image/jpeg;base64,${base64Encode(bytes)}';
 
-      if (contentType == null) {
+      // Firestore limita cada documento a 1 MB.
+      if (avatarData.length > 700000) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('El formato de imagen no es compatible.'),
-          ),
+          const SnackBar(content: Text('La imagen es muy pesada.')),
         );
         return;
       }
 
-      setState(() => _uploadingImage = true);
-
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('user_avatars')
-          .child(user.uid)
-          .child('avatar.$extension');
-
-      await storageRef.putFile(
-        File(image.path),
-        SettableMetadata(contentType: contentType),
-      );
-
-      final downloadUrl = await storageRef.getDownloadURL();
-
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-        'avatarUrl': downloadUrl,
+        'avatarUrl': avatarData,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
@@ -281,7 +261,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       backgroundColor: AppColors.surface
                                           .withValues(alpha: 0.12),
                                       backgroundImage: hasAvatar
-                                          ? NetworkImage(avatarUrl)
+                                          ? (avatarUrl.startsWith('data:')
+                                                ? MemoryImage(
+                                                    base64Decode(
+                                                      avatarUrl.split(',').last,
+                                                    ),
+                                                  )
+                                                : NetworkImage(avatarUrl)
+                                                    as ImageProvider)
                                           : null,
                                       child: !hasAvatar
                                           ? const Icon(
