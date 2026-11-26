@@ -1,27 +1,22 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/filter_option.dart';
+import '../../models/place.dart';
+import '../../services/places_service.dart';
+import '../../styles/app_colors.dart';
 import '../../widgets/filters.dart';
-
-// Modelo local de atractivos turísticos.
-class Place {
-  final String id;
-  final String name;
-  final PlaceCategory category;
-  final LatLng location;
-  final bool isFavorite;
-
-  const Place({
-    required this.id,
-    required this.name,
-    required this.category,
-    required this.location,
-    this.isFavorite = false,
-  });
-}
+import '../../widgets/map_search_bar.dart';
+import '../../widgets/place_detail_card.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -32,97 +27,285 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   final MapController _mapController = MapController();
+  final Set<String> _favoritos = {};
+  final Connectivity _connectivity = Connectivity();
 
   LatLng? _currentPosition;
-  bool _isLoading = false;
+  bool _isLoadingLocation = false;
+  bool _isLoadingPlaces = true;
   bool _mapReady = false;
+  bool? _hasNetworkConnection;
+  int? _refreshPointer;
+  double? _refreshStartY;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   PlaceCategory _activeCategory = PlaceCategory.all;
+  String _searchQuery = '';
+  Place? _selectedPlace;
 
-  // Atractivos turísticos de prueba.
-  final List<Place> _allPlaces = const [
-    Place(
-      id: '1',
-      name: 'Museo Regional de Tlaxcala',
-      category: PlaceCategory.museum,
-      location: LatLng(19.3182, -98.2375),
-    ),
-    Place(
-      id: '2',
-      name: 'Museo de Arte de Tlaxcala (MAT)',
-      category: PlaceCategory.museum,
-      location: LatLng(19.3220, -98.2450),
-    ),
-    Place(
-      id: '3',
-      name: 'Basílica de Nuestra Señora de Ocotlán',
-      category: PlaceCategory.church,
-      location: LatLng(19.3250, -98.2300),
-      isFavorite: true,
-    ),
-    Place(
-      id: '4',
-      name: 'Ex Convento de San Francisco',
-      category: PlaceCategory.church,
-      location: LatLng(19.3140, -98.2360),
-    ),
-    Place(
-      id: '5',
-      name: 'Parque Nacional La Malinche',
-      category: PlaceCategory.park,
-      location: LatLng(19.2300, -98.3000),
-    ),
-    Place(
-      id: '6',
-      name: 'Zócalo de Tlaxcala',
-      category: PlaceCategory.park,
-      location: LatLng(19.3175, -98.2381),
-      isFavorite: true,
-    ),
-    Place(
-      id: '7',
-      name: 'Mirador de Ocotlán',
-      category: PlaceCategory.viewpoint,
-      location: LatLng(19.3270, -98.2280),
-    ),
-    Place(
-      id: '8',
-      name: 'Restaurante Los Portales',
-      category: PlaceCategory.restaurant,
-      location: LatLng(19.3150, -98.2400),
-      isFavorite: true,
-    ),
-    Place(
-      id: '9',
-      name: 'Hotel San Francisco Tlaxcala',
-      category: PlaceCategory.hotel,
-      location: LatLng(19.3160, -98.2350),
-    ),
-  ];
+  List<Place> _allPlaces = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _allPlaces = PlacesService.getFallbackPlaces();
+    _loadPlacesFromOverpass();
+    _cargarFavoritos();
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
+      _handleConnectivityChanged,
+    );
+    _checkConnectivity();
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _checkConnectivity() async {
+    try {
+      final results = await _connectivity.checkConnectivity();
+      if (!mounted) return;
+      _updateConnectivity(results, notify: false);
+    } on PlatformException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo comprobar la conexión: ${error.message}'),
+        ),
+      );
+    }
+  }
+
+  void _handleConnectivityChanged(List<ConnectivityResult> results) {
+    _updateConnectivity(results);
+  }
+
+  void _updateConnectivity(
+    List<ConnectivityResult> results, {
+    bool notify = true,
+  }) {
+    final isConnected = results.any(
+      (result) => result != ConnectivityResult.none,
+    );
+    final previous = _hasNetworkConnection;
+    if (previous == isConnected) return;
+
+    setState(() => _hasNetworkConnection = isConnected);
+
+    if (!notify || previous == null) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            isConnected
+                ? 'Conexión restablecida.'
+                : 'Sin conexión. El mapa puede no cargarse.',
+          ),
+        ),
+      );
+  }
+
+  Future<void> _loadPlacesFromOverpass() async {
+    setState(() {
+      _isLoadingPlaces = true;
+    });
+
+    final places = await PlacesService.fetchPlacesFromOverpass();
+
+    if (!mounted) return;
+
+    setState(() {
+      _allPlaces = places;
+      _isLoadingPlaces = false;
+    });
+  }
+
+  void _handleRefreshPointerDown(PointerDownEvent event) {
+    if (event.position.dy <= 40) {
+      _refreshPointer = event.pointer;
+      _refreshStartY = event.position.dy;
+    }
+  }
+
+  void _handleRefreshPointerUp(PointerUpEvent event) {
+    if (_refreshPointer != event.pointer) return;
+
+    final shouldRefresh =
+        event.position.dy - (_refreshStartY ?? event.position.dy) >= 100;
+    _refreshPointer = null;
+    _refreshStartY = null;
+
+    if (shouldRefresh && !_isLoadingPlaces) {
+      _refreshMap();
+    }
+  }
+
+  void _handleRefreshPointerCancel(PointerCancelEvent event) {
+    if (_refreshPointer != event.pointer) return;
+    _refreshPointer = null;
+    _refreshStartY = null;
+  }
+
+  Future<void> _refreshMap() async {
+    await Future.wait<void>([_loadPlacesFromOverpass(), _cargarFavoritos()]);
+  }
+
+  String _normalizeText(String text) {
+    const accents = 'áéíóúüñÁÉÍÓÚÜÑ';
+    const plain = 'aeiouunAEIOUUN';
+    var normalized = text.toLowerCase().trim();
+    for (var i = 0; i < accents.length; i++) {
+      normalized = normalized.replaceAll(accents[i], plain[i]);
+    }
+    return normalized;
+  }
+
+  String _categoryLabel(PlaceCategory category) {
+    for (final opt in filterOptions) {
+      if (opt.id == category) return opt.label;
+    }
+    return '';
+  }
 
   List<Place> get _filteredPlaces {
-    if (_activeCategory == PlaceCategory.all) {
-      return _allPlaces;
+    final normalizedQuery = _normalizeText(_searchQuery);
+
+    return _allPlaces.where((place) {
+      final matchesCategory = switch (_activeCategory) {
+        PlaceCategory.all => true,
+        PlaceCategory.favorites => _favoritos.contains(place.id),
+        _ => place.category == _activeCategory,
+      };
+
+      if (!matchesCategory) return false;
+      if (normalizedQuery.isEmpty) return true;
+
+      final name = _normalizeText(place.name);
+      final municipality = _normalizeText(place.resolvedMunicipality);
+      final category = _normalizeText(_categoryLabel(place.category));
+
+      return name.contains(normalizedQuery) ||
+          municipality.contains(normalizedQuery) ||
+          category.contains(normalizedQuery);
+    }).toList();
+  }
+
+  Future<void> _cargarFavoritos() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('favorites')
+          .get();
+
+      if (!mounted) return;
+
+      setState(() {
+        _favoritos
+          ..clear()
+          ..addAll(snapshot.docs.map((document) => document.id));
+      });
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudieron cargar los lugares favoritos: $error'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _toggleFavorito(Place place) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inicia sesión para guardar favoritos.')),
+      );
+      return;
     }
 
-    if (_activeCategory == PlaceCategory.favorites) {
-      return _allPlaces.where((place) => place.isFavorite).toList();
-    }
+    final referencia = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('favorites')
+        .doc(place.id);
+    final esFavorito = _favoritos.contains(place.id);
 
-    return _allPlaces
-        .where((place) => place.category == _activeCategory)
-        .toList();
+    try {
+      if (esFavorito) {
+        await referencia.delete();
+      } else {
+        await referencia.set({
+          'type': 'place',
+          'name': place.name,
+          'category': place.category.name,
+          'latitude': place.location.latitude,
+          'longitude': place.location.longitude,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        if (esFavorito) {
+          _favoritos.remove(place.id);
+        } else {
+          _favoritos.add(place.id);
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            esFavorito
+                ? '${place.name} se quitó de lugares favoritos'
+                : '${place.name} se agregó a lugares favoritos',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo actualizar el lugar favorito: $error'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _abrirComoLlegar(Place place) async {
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1'
+      '&destination=${place.location.latitude},${place.location.longitude}'
+      '&travelmode=driving',
+    );
+
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo abrir la aplicación de mapas.'),
+        ),
+      );
+    }
   }
 
   Future<void> _getCurrentLocation() async {
-    if (_isLoading) return;
+    if (_isLoadingLocation) return;
 
     setState(() {
-      _isLoading = true;
+      _isLoadingLocation = true;
     });
 
     try {
-      // Comprobar si el servicio de ubicación está activado.
       final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
       if (!serviceEnabled) {
@@ -131,7 +314,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         );
       }
 
-      // Comprobar permisos.
       LocationPermission permission = await Geolocator.checkPermission();
 
       if (permission == LocationPermission.denied) {
@@ -148,7 +330,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         );
       }
 
-      // Obtener la ubicación actual.
       final Position position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
@@ -165,10 +346,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
       setState(() {
         _currentPosition = currentLatLng;
-        _isLoading = false;
+        _isLoadingLocation = false;
       });
 
-      // Centrar el mapa cuando esté listo.
       if (_mapReady) {
         _animatedMapMove(currentLatLng, 16.0);
       }
@@ -190,7 +370,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       if (!mounted) return;
 
       setState(() {
-        _isLoading = false;
+        _isLoadingLocation = false;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -250,164 +430,279 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   @override
-  void dispose() {
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final List<Place> currentPlaces = _filteredPlaces;
+    final selectedPlace = _selectedPlace;
+    final double topOffset = MediaQuery.of(context).padding.top + 12;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: const LatLng(19.3182, -98.2375),
-              initialZoom: 13.0,
-              onMapReady: () {
-                _mapReady = true;
+      body: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: _handleRefreshPointerDown,
+        onPointerUp: _handleRefreshPointerUp,
+        onPointerCancel: _handleRefreshPointerCancel,
+        child: Stack(
+          children: [
+            FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: const LatLng(19.3182, -98.2375),
+                initialZoom: 12.0,
+                onMapReady: () {
+                  _mapReady = true;
 
-                if (_currentPosition != null) {
-                  _animatedMapMove(_currentPosition!, 16.0);
-                }
-              },
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.tlaxgomobil',
+                  if (_currentPosition != null) {
+                    _animatedMapMove(_currentPosition!, 16.0);
+                  }
+                },
+                onTap: (_, _) {
+                  if (_selectedPlace != null) {
+                    setState(() {
+                      _selectedPlace = null;
+                    });
+                  }
+                },
               ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.tlaxgomobil',
+                ),
 
-              // Marcadores turísticos según el filtro seleccionado.
-              MarkerLayer(
-                markers: currentPlaces.map((place) {
-                  return Marker(
-                    point: place.location,
-                    width: 44,
-                    height: 50,
-                    child: GestureDetector(
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '${place.name} '
-                              '(Favorito: ${place.isFavorite ? "Sí" : "No"})',
+                MarkerLayer(
+                  markers: currentPlaces.map((place) {
+                    final isSelected = _selectedPlace?.id == place.id;
+                    return Marker(
+                      point: place.location,
+                      width: 44,
+                      height: 50,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selectedPlace = place;
+                          });
+                        },
+                        child: Icon(
+                          Icons.location_on,
+                          color: isSelected
+                              ? Colors.lightBlueAccent
+                              : Colors.redAccent,
+                          size: isSelected ? 46 : 40,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+
+                if (_currentPosition != null)
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: _currentPosition!,
+                        width: 50,
+                        height: 50,
+                        child: const Icon(
+                          Icons.my_location,
+                          color: Colors.blueAccent,
+                          size: 40,
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+
+            // Barra de búsqueda, filtros y estado de carga de Overpass.
+            Positioned(
+              top: topOffset,
+              left: 16,
+              right: 16,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  MapSearchBar(
+                    value: _searchQuery,
+                    onChanged: (newValue) {
+                      setState(() {
+                        _searchQuery = newValue;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  Filters(
+                    activeCategory: _activeCategory,
+                    onCategoryChange: (newCategory) {
+                      setState(() {
+                        _activeCategory = newCategory;
+                        _selectedPlace = null;
+                      });
+                    },
+                  ),
+                  if (_hasNetworkConnection == false)
+                    Container(
+                      margin: const EdgeInsets.only(top: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 9,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xE6A33224),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.wifi_off_rounded, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text(
+                            'Sin conexión. El mapa puede no cargarse.',
+                            style: TextStyle(color: Colors.white, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (_isLoadingPlaces)
+                    Container(
+                      margin: const EdgeInsets.only(top: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xE6020617),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFF1E293B)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.lightBlueAccent,
                             ),
                           ),
-                        );
-                      },
-                      child: const Icon(
-                        Icons.location_on,
-                        color: Colors.redAccent,
-                        size: 40,
+                          SizedBox(width: 8),
+                          Text(
+                            'Cargando atractivos de Tlaxcala...',
+                            style: TextStyle(color: Colors.white, fontSize: 12),
+                          ),
+                        ],
                       ),
                     ),
-                  );
-                }).toList(),
+                ],
               ),
+            ),
 
-              // Marcador de ubicación actual.
-              if (_currentPosition != null)
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: _currentPosition!,
-                      width: 50,
-                      height: 50,
-                      child: const Icon(
-                        Icons.my_location,
-                        color: Colors.blueAccent,
-                        size: 40,
-                      ),
-                    ),
-                  ],
-                ),
-            ],
-          ),
-
-          // Filtros turísticos.
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 12,
-            left: 0,
-            right: 0,
-            child: Filters(
-              activeCategory: _activeCategory,
-              onCategoryChange: (newCategory) {
+            // Tarjeta de detalle y botón "Cómo llegar" al tocar un puntito.
+            PlaceDetailCard(
+              place: selectedPlace,
+              isFavorite:
+                  selectedPlace != null &&
+                  _favoritos.contains(selectedPlace.id),
+              onToggleFavorite: () {
+                if (selectedPlace != null) {
+                  _toggleFavorito(selectedPlace);
+                }
+              },
+              onClose: () {
                 setState(() {
-                  _activeCategory = newCategory;
+                  _selectedPlace = null;
                 });
               },
             ),
-          ),
 
-          // Mensaje cuando no existen resultados.
-          if (currentPlaces.isEmpty)
-            Center(
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                margin: const EdgeInsets.symmetric(horizontal: 32),
-                decoration: BoxDecoration(
-                  color: const Color(0xE6020617),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF1E293B)),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black45,
-                      blurRadius: 10,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.search_off, size: 48, color: Colors.grey),
-                    SizedBox(height: 12),
-                    Text(
-                      'No hay resultados',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+            if (!_isLoadingPlaces && currentPlaces.isEmpty)
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  margin: const EdgeInsets.symmetric(horizontal: 32),
+                  decoration: BoxDecoration(
+                    color: const Color(0xE6020617),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFF1E293B)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black45,
+                        blurRadius: 10,
+                        offset: Offset(0, 4),
                       ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'No se encontraron lugares en esta categoría.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-          // Indicador de carga.
-          if (_isLoading)
-            const Center(
-              child: Card(
-                child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Column(
+                    ],
+                  ),
+                  child: const Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(),
+                      Icon(Icons.search_off, size: 48, color: Colors.grey),
                       SizedBox(height: 12),
-                      Text('Obteniendo ubicación...'),
+                      Text(
+                        'No hay resultados',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'No se encontraron lugares con ese filtro o municipio.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
                     ],
                   ),
                 ),
               ),
-            ),
-        ],
+
+            if (_isLoadingLocation)
+              const Center(
+                child: Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 12),
+                        Text('Obteniendo ubicación...'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
 
-      floatingActionButton: FloatingActionButton(
-        onPressed: _getCurrentLocation,
-        tooltip: 'Mi ubicación actual',
-        child: const Icon(Icons.navigation),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.small(
+            heroTag: 'refreshMap',
+            onPressed: _isLoadingPlaces ? null : _refreshMap,
+            tooltip: 'Actualizar mapa',
+            backgroundColor: AppColors.accent,
+            foregroundColor: AppColors.navy,
+            child: _isLoadingPlaces
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.navy,
+                    ),
+                  )
+                : const Icon(Icons.refresh_rounded),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton(
+            heroTag: 'currentLocation',
+            onPressed: _getCurrentLocation,
+            tooltip: 'Mi ubicación actual',
+            child: const Icon(Icons.navigation),
+          ),
+        ],
       ),
     );
   }

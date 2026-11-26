@@ -1,6 +1,6 @@
 {
-    "name": "tlaxgomobil",
-    "short_name": "tlaxgomobil",
+    "name": "Tlax.Go",
+    "short_name": "Tlax.Go",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

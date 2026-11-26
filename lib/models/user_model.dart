@@ -1,11 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserModel {
+  static const adminUid = 'zF3VlnHCltQnsped1wXfmIaMiZo1';
+
   final String uid;
   final String name;
   final String email;
   final String? avatarUrl;
-  final String role; // 'user' o 'admin'
+  final String role;
 
   UserModel({
     required this.uid,
@@ -22,7 +24,7 @@ class UserModel {
       name: data['name'] ?? 'Usuario',
       email: data['email'] ?? '',
       avatarUrl: data['avatarUrl'],
-      role: data['role'] ?? 'user',
+      role: doc.id == adminUid ? 'admin' : data['role'] ?? 'user',
     );
   }
 
