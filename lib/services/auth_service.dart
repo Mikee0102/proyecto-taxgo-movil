@@ -86,6 +86,7 @@ class AuthService {
     required String email,
     required String password,
     required String name,
+    bool termsAccepted = false,
   }) async {
     final cred = await _auth.createUserWithEmailAndPassword(
       email: email.trim(),
@@ -99,6 +100,7 @@ class AuthService {
       name: name,
       email: email.trim(),
       avatarUrl: null,
+      termsAccepted: termsAccepted,
     );
 
     return cred;
@@ -153,6 +155,7 @@ class AuthService {
     required String name,
     required String email,
     String? avatarUrl,
+    bool termsAccepted = false,
   }) async {
     final userRef = _db.collection('users').doc(uid);
     final doc = await userRef.get();
@@ -163,6 +166,7 @@ class AuthService {
         'email': email,
         'avatarUrl': avatarUrl,
         'role': 'user',
+        if (termsAccepted) 'termsAcceptedAt': FieldValue.serverTimestamp(),
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -173,6 +177,19 @@ class AuthService {
       }
       await userRef.update(data);
     }
+  }
+
+  Future<bool> hasAcceptedTerms(String uid) async {
+    final doc = await _db.collection('users').doc(uid).get();
+    if (!doc.exists) return false;
+    return doc.data()?.containsKey('termsAcceptedAt') ?? false;
+  }
+
+  Future<void> acceptTerms(String uid) async {
+    await _db.collection('users').doc(uid).set({
+      'termsAcceptedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   // 5. Cerrar sesión

@@ -21,6 +21,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       TextEditingController();
 
   bool _isLoading = false;
+  bool _acceptedTerms = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
@@ -40,6 +41,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _registerUser() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_acceptedTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Debes aceptar los Términos y Condiciones.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -48,6 +58,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
+        termsAccepted: true,
       );
 
       if (!mounted) return;
@@ -121,10 +132,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Registro de Turista - Tlax.Go'),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('Crear cuenta'), elevation: 0),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -133,18 +141,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'Crea tu cuenta',
-                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF071126), Color(0xFF15355F)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Column(
+                    children: [
+                      Icon(Icons.hiking, color: Colors.white, size: 38),
+                      SizedBox(height: 8),
+                      Text(
+                        'Crea tu cuenta',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Descubre Tlaxcala a tu manera',
+                        style: TextStyle(color: Color(0xFFB7C4DA)),
+                      ),
+                    ],
+                  ),
                 ),
-
-                const SizedBox(height: 6),
-
+                const SizedBox(height: 18),
                 const Text(
-                  'Accede a las funcionalidades personalizadas de Tlax.Go',
+                  'Completa tus datos',
                   style: TextStyle(color: Colors.grey, fontSize: 13),
-                  textAlign: TextAlign.center,
+                  textAlign: TextAlign.start,
                 ),
 
                 const SizedBox(height: 24),
@@ -285,13 +316,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 const SizedBox(height: 24),
 
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  activeColor: Theme.of(context).colorScheme.primary,
+                  value: _acceptedTerms,
+                  title: const Text(
+                    'Acepto los Términos y Condiciones',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  onChanged: (value) {
+                    setState(() => _acceptedTerms = value ?? false);
+                  },
+                ),
+
+                const SizedBox(height: 12),
+
                 // Botón de registro
                 ElevatedButton(
                   onPressed: _isLoading ? null : _registerUser,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                   child: _isLoading
