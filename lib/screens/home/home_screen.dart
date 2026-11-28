@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'dart:convert';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../services/auth_service.dart';
@@ -24,8 +26,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   int _heroPage = 0;
+  final Connectivity _connectivity = Connectivity();
   final PageController _heroController = PageController();
   Timer? _heroTimer;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  bool? _hasNetworkConnection;
 
   static const _heroImages = [
     'assets/images/destinations/huamantla.jpg',
@@ -35,11 +40,23 @@ class _HomeScreenState extends State<HomeScreen> {
     'assets/images/destinations/ixtenco.jpg',
     'assets/images/destinations/tlaxco.jpg',
   ];
+  static const _heroPlaceNames = [
+    'HUAMANTLA',
+    'CACAXTLA',
+    'LA MALINCHE',
+    'SANTUARIO DE LUCIÉRNAGAS',
+    'IXTENCO',
+    'TLAXCO',
+  ];
 
   @override
   void initState() {
     super.initState();
     AppThemeController.instance.addListener(_onThemeChanged);
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
+      _updateConnectivity,
+    );
+    _checkConnectivity();
     _heroTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (!mounted || !_heroController.hasClients) return;
       final nextPage = (_heroPage + 1) % _heroImages.length;
@@ -54,6 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _heroTimer?.cancel();
+    _connectivitySubscription?.cancel();
     _heroController.dispose();
     AppThemeController.instance.removeListener(_onThemeChanged);
     super.dispose();
@@ -61,6 +79,73 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onThemeChanged() {
     if (mounted) setState(() {});
+  }
+
+  Future<void> _checkConnectivity() async {
+    try {
+      final results = await _connectivity.checkConnectivity();
+      if (mounted) _updateConnectivity(results);
+    } on PlatformException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo comprobar la conexión: ${error.message}'),
+        ),
+      );
+    }
+  }
+
+  void _updateConnectivity(List<ConnectivityResult> results) {
+    final isConnected = results.any(
+      (result) => result != ConnectivityResult.none,
+    );
+    final previous = _hasNetworkConnection;
+    if (previous == isConnected) return;
+
+    setState(() => _hasNetworkConnection = isConnected);
+
+    final messenger = ScaffoldMessenger.of(context);
+    if (!isConnected) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Sin conexión. Los cambios de Firestore se guardarán y se enviarán al reconectarte.',
+            ),
+          ),
+        );
+    } else if (previous == false) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Conexión detectada. Sincronizando...')),
+        );
+      unawaited(_confirmPendingWrites());
+    }
+  }
+
+  Future<void> _confirmPendingWrites() async {
+    try {
+      await FirebaseFirestore.instance.waitForPendingWrites();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Sincronización completada.')),
+        );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              'No se pudo confirmar la sincronización. Revisa la conexión y los permisos de la cuenta: $error',
+            ),
+          ),
+        );
+    }
   }
 
   Future<void> _refreshHome(String uid) async {
@@ -591,7 +676,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(width: 7),
                         Text(
-                          'DESCUBRE TLAXCALA',
+                          _heroPlaceNames[_heroPage],
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: AppColors.onHero,
                             fontSize: 10,

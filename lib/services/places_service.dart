@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/filter_option.dart';
 import '../models/place.dart';
@@ -12,6 +13,7 @@ class PlacesService {
     'https://overpass-api.de/api/interpreter',
     'https://overpass.kumi.systems/api/interpreter',
   ];
+  static const String _placesCacheKey = 'cached_overpass_places';
   static List<Place>? _lastSuccessfulPlaces;
 
   static PlaceCategory _mapOsmTagToCategory(Map<String, dynamic> tags) {
@@ -29,6 +31,10 @@ class PlacesService {
   }
 
   static Future<List<Place>> fetchPlacesFromOverpass() async {
+    if (_lastSuccessfulPlaces == null) {
+      await loadCachedPlaces();
+    }
+
     const query =
         '''
       [out:json][timeout:15];
@@ -118,6 +124,7 @@ class PlacesService {
         }
 
         _lastSuccessfulPlaces = List.unmodifiable(places);
+        await _saveCachedPlaces(_lastSuccessfulPlaces!);
         return _lastSuccessfulPlaces!;
       } on Exception catch (error) {
         debugPrint('No se pudo consultar Overpass en $endpoint: $error');
@@ -128,6 +135,90 @@ class PlacesService {
       'No se pudo cargar Overpass; se usará la última lista disponible.',
     );
     return _lastSuccessfulPlaces ?? getFallbackPlaces();
+  }
+
+  static Future<List<Place>> loadCachedPlaces() async {
+    if (_lastSuccessfulPlaces != null) return _lastSuccessfulPlaces!;
+
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final cachedJson = preferences.getString(_placesCacheKey);
+      if (cachedJson == null) return const [];
+
+      final decoded = jsonDecode(cachedJson);
+      if (decoded is! List<dynamic>) {
+        throw const FormatException('El caché de lugares no es una lista.');
+      }
+
+      final places = <Place>[];
+      for (final item in decoded) {
+        if (item is! Map<String, dynamic>) continue;
+
+        final latitude = item['latitude'];
+        final longitude = item['longitude'];
+        final id = item['id'];
+        final name = item['name'];
+        if (latitude is! num ||
+            longitude is! num ||
+            id is! String ||
+            name is! String) {
+          continue;
+        }
+
+        final categoryName = item['category'];
+        final category = PlaceCategory.values.firstWhere(
+          (value) => value.name == categoryName,
+          orElse: () => PlaceCategory.all,
+        );
+        final municipality = item['municipality'];
+        final location = LatLng(latitude.toDouble(), longitude.toDouble());
+
+        places.add(
+          Place(
+            id: id,
+            name: name,
+            category: category,
+            location: location,
+            municipality: municipality is String ? municipality : null,
+          ),
+        );
+      }
+
+      if (places.isEmpty) return const [];
+      _lastSuccessfulPlaces = List.unmodifiable(places);
+      return _lastSuccessfulPlaces!;
+    } on Exception catch (error) {
+      debugPrint('No se pudo leer el caché de lugares: $error');
+      return const [];
+    }
+  }
+
+  static Future<void> _saveCachedPlaces(List<Place> places) async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final cacheSaved = await preferences.setString(
+        _placesCacheKey,
+        jsonEncode(
+          places
+              .map(
+                (place) => {
+                  'id': place.id,
+                  'name': place.name,
+                  'category': place.category.name,
+                  'latitude': place.location.latitude,
+                  'longitude': place.location.longitude,
+                  'municipality': place.municipality,
+                },
+              )
+              .toList(),
+        ),
+      );
+      if (!cacheSaved) {
+        debugPrint('No se pudo guardar el caché de lugares.');
+      }
+    } on Exception catch (error) {
+      debugPrint('No se pudo guardar el caché de lugares: $error');
+    }
   }
 
   static List<Place> getFallbackPlaces() {
