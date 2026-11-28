@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -7,6 +11,8 @@ import '../map/map_screen.dart';
 import '../profile/profile_screen.dart';
 import './intinerario.dart';
 import '../../styles/app_colors.dart';
+import '../../styles/app_theme_controller.dart';
+import '../../widgets/glass_surface.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,6 +23,45 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  int _heroPage = 0;
+  final PageController _heroController = PageController();
+  Timer? _heroTimer;
+
+  static const _heroImages = [
+    'assets/images/destinations/huamantla.jpg',
+    'assets/images/destinations/cacaxtla.jpg',
+    'assets/images/destinations/malinche.jpg',
+    'assets/images/destinations/luciernagas.jpg',
+    'assets/images/destinations/ixtenco.jpg',
+    'assets/images/destinations/tlaxco.jpg',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    AppThemeController.instance.addListener(_onThemeChanged);
+    _heroTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted || !_heroController.hasClients) return;
+      final nextPage = (_heroPage + 1) % _heroImages.length;
+      _heroController.animateToPage(
+        nextPage,
+        duration: const Duration(milliseconds: 700),
+        curve: Curves.easeInOutCubic,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _heroTimer?.cancel();
+    _heroController.dispose();
+    AppThemeController.instance.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
 
   Future<void> _refreshHome(String uid) async {
     try {
@@ -63,7 +108,6 @@ class _HomeScreenState extends State<HomeScreen> {
         final name = profile?.name.isNotEmpty == true
             ? profile!.name
             : user.displayName ?? 'Viajero';
-        final avatarUrl = profile?.avatarUrl ?? user.photoURL;
 
         return Scaffold(
           body: IndexedStack(
@@ -72,65 +116,83 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildHomeContent(
                 name: name,
                 email: user.email ?? 'Sin correo registrado',
-                avatarUrl: avatarUrl,
+                avatarUrl: profile?.avatarUrl ?? user.photoURL,
                 onRefresh: () => _refreshHome(user.uid),
               ),
-              const MapScreen(),
-              ItinerariosScreen(isAdmin: role == 'admin'),
-              ProfileScreen(onReturn: () => setState(() => _selectedIndex = 0)),
+              MapScreen(onSignOut: _signOut),
+              ItinerariosScreen(isAdmin: role == 'admin', onSignOut: _signOut),
+              ProfileScreen(
+                onReturn: () => setState(() => _selectedIndex = 0),
+                onSignOut: _signOut,
+              ),
             ],
           ),
-          bottomNavigationBar: NavigationBarTheme(
-            data: NavigationBarThemeData(
-              iconTheme: WidgetStateProperty.resolveWith((states) {
-                return IconThemeData(
-                  color: states.contains(WidgetState.selected)
-                      ? AppColors.accent
-                      : Colors.white60,
-                );
-              }),
-              labelTextStyle: WidgetStateProperty.resolveWith((states) {
-                return TextStyle(
-                  color: states.contains(WidgetState.selected)
-                      ? Colors.white
-                      : Colors.white60,
-                  fontSize: 12,
-                  fontWeight: states.contains(WidgetState.selected)
-                      ? FontWeight.w700
-                      : FontWeight.w500,
-                );
-              }),
-            ),
-            child: NavigationBar(
-              selectedIndex: _selectedIndex,
-              onDestinationSelected: (index) {
-                setState(() => _selectedIndex = index);
-              },
-              backgroundColor: AppColors.navy,
-              indicatorColor: AppColors.accent.withValues(alpha: 0.18),
-              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.home_outlined),
-                  selectedIcon: Icon(Icons.home_rounded),
-                  label: 'Inicio',
+          bottomNavigationBar: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: GlassSurface(
+                borderRadius: BorderRadius.circular(26),
+                tintColor: AppColors.headerGlass,
+                borderColor: AppColors.accentLight.withValues(alpha: 0.32),
+                child: NavigationBarTheme(
+                  data: NavigationBarThemeData(
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    indicatorColor: AppColors.accent.withValues(alpha: 0.2),
+                    iconTheme: WidgetStateProperty.resolveWith((states) {
+                      return IconThemeData(
+                        color: states.contains(WidgetState.selected)
+                            ? AppColors.onHeader
+                            : AppColors.onHeader.withValues(alpha: 0.82),
+                      );
+                    }),
+                    labelTextStyle: WidgetStateProperty.resolveWith((states) {
+                      return TextStyle(
+                        color: states.contains(WidgetState.selected)
+                            ? AppColors.onHeader
+                            : AppColors.onHeader.withValues(alpha: 0.82),
+                        fontSize: 11,
+                        fontWeight: states.contains(WidgetState.selected)
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      );
+                    }),
+                  ),
+                  child: NavigationBar(
+                    selectedIndex: _selectedIndex,
+                    onDestinationSelected: (index) {
+                      setState(() => _selectedIndex = index);
+                    },
+                    backgroundColor: Colors.transparent,
+                    indicatorColor: AppColors.accent.withValues(alpha: 0.2),
+                    labelBehavior:
+                        NavigationDestinationLabelBehavior.alwaysShow,
+                    destinations: const [
+                      NavigationDestination(
+                        icon: Icon(Icons.home_outlined),
+                        selectedIcon: Icon(Icons.home_rounded),
+                        label: 'Inicio',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.explore_outlined),
+                        selectedIcon: Icon(Icons.explore_rounded),
+                        label: 'Mapa',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.calendar_month_outlined),
+                        selectedIcon: Icon(Icons.calendar_month_rounded),
+                        label: 'Itinerarios',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.person_outline_rounded),
+                        selectedIcon: Icon(Icons.person_rounded),
+                        label: 'Perfil',
+                      ),
+                    ],
+                  ),
                 ),
-                NavigationDestination(
-                  icon: Icon(Icons.explore_outlined),
-                  selectedIcon: Icon(Icons.explore_rounded),
-                  label: 'Mapa',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.calendar_month_outlined),
-                  selectedIcon: Icon(Icons.calendar_month_rounded),
-                  label: 'Itinerarios',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.person_outline_rounded),
-                  selectedIcon: Icon(Icons.person_rounded),
-                  label: 'Perfil',
-                ),
-              ],
+              ),
             ),
           ),
         );
@@ -144,109 +206,28 @@ class _HomeScreenState extends State<HomeScreen> {
     required String? avatarUrl,
     required Future<void> Function() onRefresh,
   }) {
-    final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
-
     return SafeArea(
       bottom: false,
-      child: RefreshIndicator(
-        onRefresh: onRefresh,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                color: AppColors.navy,
-                padding: const EdgeInsets.fromLTRB(20, 10, 14, 20),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: AppColors.accent.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Image.asset(
-                        'assets/images/icono.jpg',
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    const Text(
-                      'Tlax.Go',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 23,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.accent.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        '60 municipios',
-                        style: TextStyle(
-                          color: AppColors.accent,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      tooltip: 'Cerrar sesión',
-                      onPressed: _signOut,
-                      icon: const Icon(Icons.logout_rounded),
-                      color: Colors.white70,
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildHero(),
-                    const SizedBox(height: 18),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildHomeHeader(),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: onRefresh,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildHero(),
+                      const SizedBox(height: 20),
+                      Row(
                         children: [
-                          CircleAvatar(
-                            radius: 25,
-                            backgroundColor: AppColors.accent.withValues(
-                              alpha: 0.14,
-                            ),
-                            backgroundImage: hasAvatar
-                                ? NetworkImage(avatarUrl)
-                                : null,
-                            child: hasAvatar
-                                ? null
-                                : const Icon(
-                                    Icons.person_rounded,
-                                    color: AppColors.navy,
-                                    size: 28,
-                                  ),
-                          ),
-                          const SizedBox(width: 13),
+                          _buildUserAvatar(avatarUrl),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,20 +236,51 @@ class _HomeScreenState extends State<HomeScreen> {
                                   '¡Hola, $name!',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: AppColors.primary,
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w800,
+                                  style: TextStyle(
+                                    color: AppColors.textStrong,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -0.3,
                                   ),
                                 ),
                                 const SizedBox(height: 3),
                                 Text(
-                                  email,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  '¿Qué quieres descubrir hoy?',
+                                  style: TextStyle(
                                     color: AppColors.muted,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.accent.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: AppColors.accent.withValues(alpha: 0.22),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.location_on_rounded,
+                                  size: 16,
+                                  color: AppColors.accent,
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  'Tlaxcala',
+                                  style: TextStyle(
+                                    color: AppColors.textStrong,
                                     fontSize: 12,
+                                    fontWeight: FontWeight.w800,
                                   ),
                                 ),
                               ],
@@ -276,68 +288,209 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 28),
-                    const Text(
-                      'Inspiración para tu viaje',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
+                      const SizedBox(height: 28),
+                      Text(
+                        'Inspiración para tu viaje',
+                        style: TextStyle(
+                          color: AppColors.textStrong,
+                          fontSize: 21,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 5),
-                    const Text(
-                      'Lugares que hacen única a Tlaxcala.',
-                      style: TextStyle(color: AppColors.muted, fontSize: 14),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      height: 205,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        clipBehavior: Clip.none,
-                        children: [
-                          _buildDestinationCard(
-                            category: 'ARTE E HISTORIA',
-                            title: 'Basílica de Ocotlán',
-                            subtitle: 'Un ícono de Tlaxcala',
-                            icon: Icons.church_rounded,
-                            colors: const [
-                              Color(0xFF175A76),
-                              Color(0xFF09283F),
-                            ],
-                          ),
-                          const SizedBox(width: 14),
-                          _buildDestinationCard(
-                            category: 'NATURALEZA',
-                            title: 'La Malinche',
-                            subtitle: 'Aire libre y paisajes',
-                            icon: Icons.landscape_rounded,
-                            colors: const [
-                              Color(0xFF36765E),
-                              Color(0xFF153D3A),
-                            ],
-                          ),
-                          const SizedBox(width: 14),
-                          _buildDestinationCard(
-                            category: 'CULTURA',
-                            title: 'Centro Histórico',
-                            subtitle: 'Plazas llenas de historia',
-                            icon: Icons.account_balance_rounded,
-                            colors: const [
-                              Color(0xFF9A6237),
-                              Color(0xFF542E32),
-                            ],
-                          ),
-                        ],
+                      const SizedBox(height: 5),
+                      Text(
+                        'Lugares que hacen única a Tlaxcala.',
+                        style: TextStyle(color: AppColors.muted, fontSize: 14),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: 246,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          clipBehavior: Clip.none,
+                          children: [
+                            _buildDestinationCard(
+                              category: 'ARTE E HISTORIA',
+                              title: 'Huamantla',
+                              subtitle: 'Tapetes y tradición',
+                              icon: Icons.palette_rounded,
+                              imageUrl:
+                                  'assets/images/destinations/huamantla.jpg',
+                            ),
+                            const SizedBox(width: 14),
+                            _buildDestinationCard(
+                              category: 'NATURALEZA',
+                              title: 'La Malinche',
+                              subtitle: 'Aire libre y paisajes',
+                              icon: Icons.landscape_rounded,
+                              imageUrl:
+                                  'assets/images/destinations/malinche.jpg',
+                            ),
+                            const SizedBox(width: 14),
+                            _buildDestinationCard(
+                              category: 'ARQUEOLOGÍA',
+                              title: 'Cacaxtla',
+                              subtitle: 'Arte prehispánico',
+                              icon: Icons.account_balance_rounded,
+                              imageUrl:
+                                  'assets/images/destinations/cacaxtla.jpg',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ],
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHomeHeader() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF071126),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(22)),
+        border: Border(
+          bottom: BorderSide(color: AppColors.accent.withValues(alpha: 0.55)),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF071126).withValues(alpha: 0.28),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 10, 14, 20),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: AppColors.accent.withValues(alpha: 0.3),
+                ),
+                color: AppColors.accent.withValues(alpha: 0.12),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Image.asset('assets/images/icono.jpg', fit: BoxFit.cover),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      'Tlax.Go',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.onHeader,
+                        fontSize: 23,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.55),
+                          width: 1,
+                        ),
+                      ),
+                      child: Text(
+                        '60 municipios',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: AppColors.onPrimary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Cerrar sesión',
+              onPressed: _signOut,
+              style: IconButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: AppColors.accent,
+                minimumSize: const Size(40, 40),
+                padding: EdgeInsets.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.logout_rounded),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserAvatar(String? avatarUrl) {
+    Widget fallback() => Container(
+      color: AppColors.accent.withValues(alpha: 0.18),
+      alignment: Alignment.center,
+      child: Icon(Icons.person_rounded, color: AppColors.accentLight, size: 26),
+    );
+
+    final trimmedUrl = avatarUrl?.trim();
+    if (trimmedUrl == null || trimmedUrl.isEmpty) {
+      return ClipOval(
+        child: SizedBox(width: 44, height: 44, child: fallback()),
+      );
+    }
+
+    final ImageProvider<Object> image;
+    if (trimmedUrl.startsWith('data:')) {
+      final separator = trimmedUrl.indexOf(',');
+      if (separator < 0) {
+        return ClipOval(
+          child: SizedBox(width: 44, height: 44, child: fallback()),
+        );
+      }
+      try {
+        image = MemoryImage(base64Decode(trimmedUrl.substring(separator + 1)));
+      } on FormatException {
+        return ClipOval(
+          child: SizedBox(width: 44, height: 44, child: fallback()),
+        );
+      }
+    } else {
+      image = NetworkImage(trimmedUrl);
+    }
+
+    return ClipOval(
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: Image(
+          image: image,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => fallback(),
         ),
       ),
     );
@@ -345,73 +498,157 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHero() {
     return Container(
-      constraints: const BoxConstraints(minHeight: 270),
-      padding: const EdgeInsets.all(22),
+      constraints: const BoxConstraints(minHeight: 250),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.heroTop, AppColors.navy],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppColors.heroBorder),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -9,
-            top: 24,
-            child: Icon(
-              Icons.explore_rounded,
-              size: 118,
-              color: AppColors.accent.withValues(alpha: 0.09),
-            ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.textStrong.withValues(alpha: 0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(23),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: PageView.builder(
+                controller: _heroController,
+                itemCount: _heroImages.length,
+                onPageChanged: (page) => setState(() => _heroPage = page),
+                itemBuilder: (context, index) => Image.asset(
+                  _heroImages[index],
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
                 ),
+              ),
+            ),
+            Positioned.fill(
+              child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  '✨  DESCUBRE TLAXCALA',
-                  style: TextStyle(
-                    color: AppColors.accent,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.1,
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xE6071126),
+                      const Color(0x73071126),
+                      const Color(0x18071126),
+                    ],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
-              const Text(
-                'Una aventura\nen cada destino',
-                style: TextStyle(
-                  color: AppColors.surface,
-                  fontSize: 29,
-                  height: 1.12,
-                  fontWeight: FontWeight.w800,
-                ),
+            ),
+            Positioned(
+              right: 18,
+              bottom: 18,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(_heroImages.length, (index) {
+                  final isActive = index == _heroPage;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    margin: const EdgeInsets.only(left: 5),
+                    width: isActive ? 22 : 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? AppColors.accent
+                          : Colors.white.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  );
+                }),
               ),
-              const SizedBox(height: 10),
-              const Text(
-                'Tradición, naturaleza y cultura te esperan.',
-                style: TextStyle(
-                  color: AppColors.heroText,
-                  fontSize: 14,
-                  height: 1.4,
-                ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: AppColors.accent.withValues(alpha: 0.28),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.wb_sunny_rounded,
+                          color: AppColors.accent,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 7),
+                        Text(
+                          'DESCUBRE TLAXCALA',
+                          style: TextStyle(
+                            color: AppColors.onHero,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 21),
+                  Text(
+                    'Una aventura en\ncada destino',
+                    style: TextStyle(
+                      color: AppColors.onHero,
+                      fontSize: 30,
+                      height: 1.1,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Tradición, naturaleza y cultura te esperan.',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 17),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: ElevatedButton.icon(
+                      onPressed: () => setState(() => _selectedIndex = 1),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(0, 46),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: AppColors.onPrimary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: const Icon(Icons.near_me_rounded, size: 18),
+                      label: const Text(
+                        'Explorar el mapa',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -421,114 +658,137 @@ class _HomeScreenState extends State<HomeScreen> {
     required String title,
     required String subtitle,
     required IconData icon,
-    required List<Color> colors,
+    required String imageUrl,
   }) {
+    final borderRadius = BorderRadius.circular(22);
+
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: borderRadius,
       child: InkWell(
         onTap: () => setState(() => _selectedIndex = 1),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: borderRadius,
         child: Ink(
-          width: 250,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: colors,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(22),
-            boxShadow: [
-              BoxShadow(
-                color: colors.last.withValues(alpha: 0.18),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
+          width: 266,
+          decoration: BoxDecoration(borderRadius: borderRadius),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: borderRadius,
             child: Stack(
+              fit: StackFit.expand,
               children: [
-                Positioned(
-                  top: -28,
-                  right: -20,
-                  child: Container(
-                    width: 150,
-                    height: 150,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.06),
+                Image.asset(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: AppColors.itineraryTop,
+                    alignment: Alignment.center,
+                    child: Icon(
+                      icon,
+                      size: 118,
+                      color: AppColors.accent.withValues(alpha: 0.28),
+                    ),
+                  ),
+                ),
+                const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0x12071126), Color(0xD0071126)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
                     ),
                   ),
                 ),
                 Positioned(
-                  top: 10,
-                  right: 12,
-                  child: Icon(
-                    icon,
-                    size: 96,
-                    color: Colors.white.withValues(alpha: 0.12),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
+                  top: 14,
+                  left: 14,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xE6071126),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.28),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(icon, size: 15, color: AppColors.accentLight),
+                        const SizedBox(width: 7),
+                        Text(
                           category,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
-                            letterSpacing: 0.7,
+                            letterSpacing: 0.6,
                           ),
                         ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          height: 1.1,
-                          fontWeight: FontWeight.w800,
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  bottom: 12,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withValues(alpha: 0.7),
+                                blurRadius: 8,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 5),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              subtitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.76),
-                                fontSize: 12,
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                subtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                      blurRadius: 7,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                          const Icon(
-                            Icons.arrow_forward_rounded,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ],
-                      ),
-                    ],
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              color: AppColors.accentLight,
+                              size: 17,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

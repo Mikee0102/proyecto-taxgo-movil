@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/filter_option.dart';
 import '../models/place.dart';
 import '../styles/app_colors.dart';
+import 'glass_surface.dart';
 
 class PlaceDetailCard extends StatelessWidget {
   final Place? place;
@@ -105,24 +106,9 @@ class PlaceDetailCard extends StatelessWidget {
       left: 16,
       right:
           84, // Deja espacio limpio a la derecha para el FloatingActionButton
-      child: Container(
+      child: GlassSurface(
+        borderRadius: BorderRadius.circular(24),
         padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xF5142038), Color(0xF5060B1D)],
-          ),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.42),
-              blurRadius: 24,
-              offset: const Offset(0, 9),
-            ),
-          ],
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,7 +122,7 @@ class PlaceDetailCard extends StatelessWidget {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF082F49),
+                      color: AppColors.accent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: AppColors.accent.withValues(alpha: 0.24),
@@ -151,7 +137,7 @@ class PlaceDetailCard extends StatelessWidget {
                             categoryText.toUpperCase(),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.accentLight,
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
@@ -177,10 +163,10 @@ class PlaceDetailCard extends StatelessWidget {
                           ? Icons.favorite_rounded
                           : Icons.favorite_border_rounded,
                       iconColor: isFavorite
-                          ? const Color(0xFFFF6B8A)
-                          : Colors.white70,
+                          ? AppColors.accentLight
+                          : AppColors.muted,
                       backgroundColor: isFavorite
-                          ? const Color(0xFF482136)
+                          ? AppColors.accent.withValues(alpha: 0.16)
                           : null,
                       tooltip: 'Favorito',
                       onTap: onToggleFavorite,
@@ -201,8 +187,8 @@ class PlaceDetailCard extends StatelessWidget {
               currentPlace.name,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: AppColors.textStrong,
                 fontSize: 19,
                 fontWeight: FontWeight.w800,
                 height: 1.18,
@@ -212,13 +198,13 @@ class PlaceDetailCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.055),
+                color: AppColors.surface.withValues(alpha: 0.55),
                 borderRadius: BorderRadius.circular(13),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+                border: Border.all(color: AppColors.glassBorder),
               ),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.location_on_rounded,
                     size: 18,
                     color: AppColors.accentLight,
@@ -229,8 +215,8 @@ class PlaceDetailCard extends StatelessWidget {
                       '$municipality, Tlaxcala',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: AppColors.textStrong,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -242,17 +228,17 @@ class PlaceDetailCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.my_location_rounded,
                   size: 13,
-                  color: Colors.white38,
+                  color: AppColors.mutedLight,
                 ),
                 const SizedBox(width: 5),
                 Text(
                   '${currentPlace.location.latitude.toStringAsFixed(4)}, '
                   '${currentPlace.location.longitude.toStringAsFixed(4)}',
-                  style: const TextStyle(
-                    color: Colors.white54,
+                  style: TextStyle(
+                    color: AppColors.muted,
                     fontSize: 11,
                     letterSpacing: 0.2,
                   ),
@@ -288,14 +274,14 @@ class PlaceDetailCard extends StatelessWidget {
 
 class _ActionIconButton extends StatelessWidget {
   final IconData icon;
-  final Color iconColor;
+  final Color? iconColor;
   final Color? backgroundColor;
   final String tooltip;
   final VoidCallback onTap;
 
   const _ActionIconButton({
     required this.icon,
-    this.iconColor = Colors.white70,
+    this.iconColor,
     this.backgroundColor,
     required this.tooltip,
     required this.onTap,
@@ -310,9 +296,9 @@ class _ActionIconButton extends StatelessWidget {
       padding: EdgeInsets.zero,
       icon: Icon(icon, size: 17),
       style: IconButton.styleFrom(
-        foregroundColor: iconColor,
-        backgroundColor: backgroundColor ?? const Color(0xFF0F172A),
-        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        foregroundColor: iconColor ?? AppColors.muted,
+        backgroundColor: backgroundColor ?? AppColors.glassSurface,
+        side: BorderSide(color: AppColors.glassBorder),
         shape: const CircleBorder(),
       ),
     );

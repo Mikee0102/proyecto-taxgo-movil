@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/auth_service.dart';
+import '../../styles/app_colors.dart';
 import '../../utils/app_routes.dart';
+import '../../widgets/glass_surface.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -133,232 +135,319 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Crear cuenta'), elevation: 0),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF071126), Color(0xFF15355F)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Column(
-                    children: [
-                      Icon(Icons.hiking, color: Colors.white, size: 38),
-                      SizedBox(height: 8),
-                      Text(
-                        'Crea tu cuenta',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppColors.loginTop, AppColors.loginBottom],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Form(
+              key: _formKey,
+              child: GlassSurface(
+                borderRadius: BorderRadius.circular(24),
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      constraints: const BoxConstraints(minHeight: 178),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [AppColors.loginTop, AppColors.loginBottom],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.heroBorder),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.accent.withValues(alpha: 0.12),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
                       ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Descubre Tlaxcala a tu manera',
-                        style: TextStyle(color: Color(0xFFB7C4DA)),
+                      clipBehavior: Clip.antiAlias,
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            right: -14,
+                            bottom: -30,
+                            child: Icon(
+                              Icons.terrain_rounded,
+                              size: 148,
+                              color: AppColors.onHero.withValues(alpha: 0.08),
+                            ),
+                          ),
+                          Positioned(
+                            right: 15,
+                            bottom: 20,
+                            child: Icon(
+                              Icons.location_on_outlined,
+                              size: 44,
+                              color: AppColors.accent.withValues(alpha: 0.45),
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.accent.withValues(
+                                    alpha: 0.16,
+                                  ),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: AppColors.accent.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.route_rounded,
+                                      size: 15,
+                                      color: AppColors.accent,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'TU VIAJE EMPIEZA AQUÍ',
+                                      style: TextStyle(
+                                        color: AppColors.accent,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 0.7,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Crea tu cuenta',
+                                style: TextStyle(
+                                  color: AppColors.onHero,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Descubre rutas, sabores y cultura de Tlaxcala.',
+                                style: TextStyle(
+                                  color: AppColors.heroText,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-                const Text(
-                  'Completa tus datos',
-                  style: TextStyle(color: Colors.grey, fontSize: 13),
-                  textAlign: TextAlign.start,
-                ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      'Completa tus datos',
+                      style: TextStyle(color: AppColors.muted, fontSize: 13),
+                      textAlign: TextAlign.start,
+                    ),
 
-                const SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
-                // Nombre completo
-                TextFormField(
-                  controller: _nameController,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    labelText: 'Nombre completo',
-                    prefixIcon: Icon(Icons.person_outline),
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Por favor ingresa tu nombre completo';
-                    }
-
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
-                // Correo electrónico
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  autocorrect: false,
-                  decoration: const InputDecoration(
-                    labelText: 'Correo electrónico',
-                    prefixIcon: Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    final email = value?.trim() ?? '';
-
-                    if (email.isEmpty) {
-                      return 'El correo es obligatorio';
-                    }
-
-                    final atIndex = email.indexOf('@');
-
-                    if (atIndex <= 0 ||
-                        atIndex != email.lastIndexOf('@') ||
-                        atIndex == email.length - 1) {
-                      return 'Ingresa un correo electrónico válido';
-                    }
-
-                    final domain = email.substring(atIndex + 1);
-
-                    if (!domain.contains('.') ||
-                        domain.startsWith('.') ||
-                        domain.endsWith('.') ||
-                        domain.contains('..')) {
-                      return 'Ingresa un correo electrónico válido';
-                    }
-
-                    if (email.contains(' ')) {
-                      return 'El correo no debe contener espacios';
-                    }
-
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
-                // Contraseña
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Contraseña',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
+                    // Nombre completo
+                    TextFormField(
+                      controller: _nameController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        labelText: 'Nombre completo',
+                        prefixIcon: Icon(Icons.person_outline),
+                        border: OutlineInputBorder(),
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Por favor ingresa tu nombre completo';
+                        }
+
+                        return null;
                       },
                     ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'La contraseña es obligatoria';
-                    }
 
-                    if (value.length < 6) {
-                      return 'Debe tener al menos 6 caracteres';
-                    }
+                    const SizedBox(height: 16),
 
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
-                // Confirmación de contraseña
-                TextFormField(
-                  controller: _confirmPasswordController,
-                  obscureText: _obscureConfirmPassword,
-                  decoration: InputDecoration(
-                    labelText: 'Confirmar contraseña',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
+                    // Correo electrónico
+                    TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      autocorrect: false,
+                      decoration: const InputDecoration(
+                        labelText: 'Correo electrónico',
+                        prefixIcon: Icon(Icons.email_outlined),
+                        border: OutlineInputBorder(),
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _obscureConfirmPassword = !_obscureConfirmPassword;
-                        });
+                      validator: (value) {
+                        final email = value?.trim() ?? '';
+
+                        if (email.isEmpty) {
+                          return 'El correo es obligatorio';
+                        }
+
+                        final atIndex = email.indexOf('@');
+
+                        if (atIndex <= 0 ||
+                            atIndex != email.lastIndexOf('@') ||
+                            atIndex == email.length - 1) {
+                          return 'Ingresa un correo electrónico válido';
+                        }
+
+                        final domain = email.substring(atIndex + 1);
+
+                        if (!domain.contains('.') ||
+                            domain.startsWith('.') ||
+                            domain.endsWith('.') ||
+                            domain.contains('..')) {
+                          return 'Ingresa un correo electrónico válido';
+                        }
+
+                        if (email.contains(' ')) {
+                          return 'El correo no debe contener espacios';
+                        }
+
+                        return null;
                       },
                     ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Confirma tu contraseña';
-                    }
 
-                    if (value != _passwordController.text) {
-                      return 'Las contraseñas no coinciden';
-                    }
+                    const SizedBox(height: 16),
 
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: 24),
-
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  activeColor: Theme.of(context).colorScheme.primary,
-                  value: _acceptedTerms,
-                  title: const Text(
-                    'Acepto los Términos y Condiciones',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  onChanged: (value) {
-                    setState(() => _acceptedTerms = value ?? false);
-                  },
-                ),
-
-                const SizedBox(height: 12),
-
-                // Botón de registro
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _registerUser,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+                    // Contraseña
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
+                        labelText: 'Contraseña',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
                           ),
-                        )
-                      : const Text(
-                          'Registrarse',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
                         ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'La contraseña es obligatoria';
+                        }
+
+                        if (value.length < 6) {
+                          return 'Debe tener al menos 6 caracteres';
+                        }
+
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Confirmación de contraseña
+                    TextFormField(
+                      controller: _confirmPasswordController,
+                      obscureText: _obscureConfirmPassword,
+                      decoration: InputDecoration(
+                        labelText: 'Confirmar contraseña',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureConfirmPassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureConfirmPassword =
+                                  !_obscureConfirmPassword;
+                            });
+                          },
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Confirma tu contraseña';
+                        }
+
+                        if (value != _passwordController.text) {
+                          return 'Las contraseñas no coinciden';
+                        }
+
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      activeColor: Theme.of(context).colorScheme.primary,
+                      value: _acceptedTerms,
+                      title: const Text(
+                        'Acepto los Términos y Condiciones',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      onChanged: (value) {
+                        setState(() => _acceptedTerms = value ?? false);
+                      },
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Botón de registro
+                    ElevatedButton(
+                      onPressed: _isLoading ? null : _registerUser,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: _isLoading
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.onPrimary,
+                              ),
+                            )
+                          : const Text(
+                              'Registrarse',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
