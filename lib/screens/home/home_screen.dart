@@ -205,7 +205,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 onRefresh: () => _refreshHome(user.uid),
               ),
               MapScreen(onSignOut: _signOut),
-              ItinerariosScreen(isAdmin: role == 'admin', onSignOut: _signOut),
+              ItinerariosScreen(
+                isAdmin: role == 'admin',
+                isActive: _selectedIndex == 2,
+                onSignOut: _signOut,
+              ),
               ProfileScreen(
                 onReturn: () => setState(() => _selectedIndex = 0),
                 onSignOut: _signOut,

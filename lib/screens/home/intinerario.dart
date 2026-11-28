@@ -9,11 +9,11 @@ import '../../widgets/glass_surface.dart';
 
 class ItinerariosScreen extends StatefulWidget {
   const ItinerariosScreen({
-  super.key,
-  this.isAdmin = false,
-  this.isActive = true,
-  this.onSignOut,
-});
+    super.key,
+    this.isAdmin = false,
+    this.isActive = true,
+    this.onSignOut,
+  });
 
   final bool isAdmin;
   final bool isActive;
@@ -205,9 +205,7 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
     }
 
     if (_isChecking) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (!_isAuthorized) {

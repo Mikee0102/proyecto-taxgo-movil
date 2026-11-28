@@ -17,6 +17,7 @@ dependencies:
   supabase_flutter: ^2.18.3
   http: ^1.2.2
   share_plus: ^10.1.4
+  local_auth: ^3.0.2
   shared_preferences: ^2.5.6
 
 
