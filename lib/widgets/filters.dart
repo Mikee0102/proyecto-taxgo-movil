@@ -40,12 +40,12 @@ class Filters extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: isActive
                       ? AppColors.accent
-                      : AppColors.navy.withValues(alpha: 0.9),
+                      : AppColors.headerGlass,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isActive
                         ? AppColors.accentLight
-                        : AppColors.textStrong,
+                        : AppColors.glassBorder,
                     width: 1,
                   ),
                   boxShadow: isActive
@@ -69,8 +69,8 @@ class Filters extends StatelessWidget {
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: isActive
-                            ? AppColors.surface
-                            : AppColors.heroText,
+                            ? AppColors.navy
+                            : AppColors.onHeader,
                       ),
                     ),
                   ],

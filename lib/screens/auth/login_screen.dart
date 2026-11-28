@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import '../../styles/app_colors.dart';
 import '/utils/auth_errors.dart';
 import '../../utils/app_routes.dart';
+import '../../widgets/glass_surface.dart';
 import 'terms_dialog.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -136,9 +138,9 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF071126), Color(0xFF15355F)],
+            colors: [AppColors.loginTop, AppColors.loginBottom],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -147,19 +149,9 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              child: Container(
+              child: GlassSurface(
+                borderRadius: BorderRadius.circular(22),
                 padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(28),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x22000000),
-                      blurRadius: 24,
-                      offset: Offset(0, 12),
-                    ),
-                  ],
-                ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -176,7 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Text(
+                    Text(
                       'Tlax.Go',
                       textAlign: TextAlign.center,
                       style: TextStyle(
@@ -184,10 +176,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const Text(
+                    Text(
                       'Turismo Inteligente de Tlaxcala',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey, fontSize: 14),
+                      style: TextStyle(color: AppColors.muted, fontSize: 14),
                     ),
                     const SizedBox(height: 28),
                     TextField(
@@ -227,14 +219,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                     ),
                     const SizedBox(height: 16),
-                    const Row(
+                    Row(
                       children: [
                         Expanded(child: Divider()),
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 12),
                           child: Text(
                             'o continúa con',
-                            style: TextStyle(color: Colors.grey),
+                            style: TextStyle(color: AppColors.muted),
                           ),
                         ),
                         Expanded(child: Divider()),

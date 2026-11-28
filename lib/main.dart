@@ -6,6 +6,7 @@ import 'screens/auth/auth_wrapper.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'styles/app_theme.dart';
+import 'styles/app_theme_controller.dart';
 import 'utils/app_routes.dart';
 import 'utils/auth_guard.dart';
 import 'screens/home/home_screen.dart';
@@ -17,6 +18,7 @@ void main() async {
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
   );
+  await AppThemeController.instance.load();
   runApp(const TlaxGoApp());
 }
 
@@ -25,16 +27,19 @@ class TlaxGoApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Tlax.Go',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      home: const AuthWrapper(),
-      routes: {
-        AppRoutes.home: (context) => const AuthGuard(child: HomeScreen()),
-        AppRoutes.login: (context) => const LoginScreen(),
-        AppRoutes.register: (context) => const RegisterScreen(),
-      },
+    return AnimatedBuilder(
+      animation: AppThemeController.instance,
+      builder: (context, _) => MaterialApp(
+        title: 'Tlax.Go',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.current,
+        home: const AuthWrapper(),
+        routes: {
+          AppRoutes.home: (context) => const AuthGuard(child: HomeScreen()),
+          AppRoutes.login: (context) => const LoginScreen(),
+          AppRoutes.register: (context) => const RegisterScreen(),
+        },
+      ),
     );
   }
 }

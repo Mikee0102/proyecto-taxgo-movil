@@ -8,18 +8,20 @@ import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/filter_option.dart';
 import '../../models/place.dart';
 import '../../services/places_service.dart';
 import '../../styles/app_colors.dart';
 import '../../widgets/filters.dart';
+import '../../widgets/glass_surface.dart';
 import '../../widgets/map_search_bar.dart';
 import '../../widgets/place_detail_card.dart';
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  const MapScreen({super.key, this.onSignOut});
+
+  final VoidCallback? onSignOut;
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -281,23 +283,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> _abrirComoLlegar(Place place) async {
-    final uri = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1'
-      '&destination=${place.location.latitude},${place.location.longitude}'
-      '&travelmode=driving',
-    );
-
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No se pudo abrir la aplicación de mapas.'),
-        ),
-      );
-    }
-  }
-
   Future<void> _getCurrentLocation() async {
     if (_isLoadingLocation) return;
 
@@ -485,8 +470,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         child: Icon(
                           Icons.location_on,
                           color: isSelected
-                              ? Colors.lightBlueAccent
-                              : Colors.redAccent,
+                              ? AppColors.accentLight
+                              : AppColors.accent,
                           size: isSelected ? 46 : 40,
                         ),
                       ),
@@ -501,9 +486,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         point: _currentPosition!,
                         width: 50,
                         height: 50,
-                        child: const Icon(
+                        child: Icon(
                           Icons.my_location,
-                          color: Colors.blueAccent,
+                          color: AppColors.accent,
                           size: 40,
                         ),
                       ),
@@ -520,13 +505,32 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  MapSearchBar(
-                    value: _searchQuery,
-                    onChanged: (newValue) {
-                      setState(() {
-                        _searchQuery = newValue;
-                      });
-                    },
+                  Row(
+                    children: [
+                      Expanded(
+                        child: MapSearchBar(
+                          value: _searchQuery,
+                          onChanged: (newValue) {
+                            setState(() {
+                              _searchQuery = newValue;
+                            });
+                          },
+                        ),
+                      ),
+                      if (widget.onSignOut != null) ...[
+                        const SizedBox(width: 8),
+                        Material(
+                          color: AppColors.headerGlass,
+                          borderRadius: BorderRadius.circular(15),
+                          child: IconButton(
+                            tooltip: 'Cerrar sesión',
+                            onPressed: widget.onSignOut,
+                            color: AppColors.onHeader,
+                            icon: const Icon(Icons.logout_rounded),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 10),
                   Filters(
@@ -539,41 +543,44 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     },
                   ),
                   if (_hasNetworkConnection == false)
-                    Container(
+                    GlassSurface(
                       margin: const EdgeInsets.only(top: 10),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
                         vertical: 9,
                       ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xE6A33224),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Row(
+                      borderRadius: BorderRadius.circular(20),
+                      tintColor: AppColors.headerGlass,
+                      borderColor: AppColors.accentLight.withValues(alpha: 0.3),
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.wifi_off_rounded, color: Colors.white),
-                          SizedBox(width: 8),
+                          Icon(
+                            Icons.wifi_off_rounded,
+                            color: AppColors.accentLight,
+                          ),
+                          const SizedBox(width: 8),
                           Text(
                             'Sin conexión. El mapa puede no cargarse.',
-                            style: TextStyle(color: Colors.white, fontSize: 12),
+                            style: TextStyle(
+                              color: AppColors.onHeader,
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
                     ),
                   if (_isLoadingPlaces)
-                    Container(
+                    GlassSurface(
                       margin: const EdgeInsets.only(top: 10),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
                         vertical: 8,
                       ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xE6020617),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFF1E293B)),
-                      ),
-                      child: const Row(
+                      borderRadius: BorderRadius.circular(20),
+                      tintColor: AppColors.headerGlass,
+                      borderColor: AppColors.accentLight.withValues(alpha: 0.3),
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           SizedBox(
@@ -581,13 +588,16 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                             height: 14,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.lightBlueAccent,
+                              color: AppColors.accent,
                             ),
                           ),
                           SizedBox(width: 8),
                           Text(
                             'Cargando atractivos de Tlaxcala...',
-                            style: TextStyle(color: Colors.white, fontSize: 12),
+                            style: TextStyle(
+                              color: AppColors.onHeader,
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
@@ -616,41 +626,39 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
             if (!_isLoadingPlaces && currentPlaces.isEmpty)
               Center(
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  margin: const EdgeInsets.symmetric(horizontal: 32),
-                  decoration: BoxDecoration(
-                    color: const Color(0xE6020617),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFF1E293B)),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black45,
-                        blurRadius: 10,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.search_off, size: 48, color: Colors.grey),
-                      SizedBox(height: 12),
-                      Text(
-                        'No hay resultados',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: GlassSurface(
+                    padding: const EdgeInsets.all(20),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 42,
+                          color: AppColors.accentLight,
                         ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'No se encontraron lugares con ese filtro o municipio.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey, fontSize: 13),
-                      ),
-                    ],
+                        const SizedBox(height: 12),
+                        Text(
+                          'No hay resultados',
+                          style: TextStyle(
+                            color: AppColors.textStrong,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'No se encontraron lugares con ese filtro o municipio.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -685,7 +693,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             backgroundColor: AppColors.accent,
             foregroundColor: AppColors.navy,
             child: _isLoadingPlaces
-                ? const SizedBox(
+                ? SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(

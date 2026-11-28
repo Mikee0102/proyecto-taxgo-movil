@@ -5,16 +5,19 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/biometric_service.dart';
 import '../../styles/app_colors.dart';
+import '../../widgets/glass_surface.dart';
 
 class ItinerariosScreen extends StatefulWidget {
   const ItinerariosScreen({
-    super.key,
-    this.isAdmin = false,
-    this.isActive = true,
-  });
+  super.key,
+  this.isAdmin = false,
+  this.isActive = true,
+  this.onSignOut,
+});
 
   final bool isAdmin;
   final bool isActive;
+  final VoidCallback? onSignOut;
 
   @override
   State<ItinerariosScreen> createState() => _ItinerariosScreenState();
@@ -247,8 +250,8 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
           'Itinerarios',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
-        backgroundColor: AppColors.navy,
-        foregroundColor: Colors.white,
+        backgroundColor: AppColors.headerGlass,
+        foregroundColor: AppColors.onHeader,
         elevation: 0,
         actions: [
           if (widget.isAdmin)
@@ -256,6 +259,12 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
               tooltip: 'Crear itinerario',
               onPressed: () => _abrirFormulario(context),
               icon: const Icon(Icons.add_rounded),
+            ),
+          if (widget.onSignOut != null)
+            IconButton(
+              tooltip: 'Cerrar sesión',
+              onPressed: widget.onSignOut,
+              icon: const Icon(Icons.logout_rounded),
             ),
         ],
       ),
@@ -269,16 +278,16 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
             children: [
               _buildIntroBanner(),
               const SizedBox(height: 26),
-              const Text(
+              Text(
                 'Recorridos para inspirarte',
                 style: TextStyle(
                   fontSize: 19,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.primary,
+                  color: AppColors.textStrong,
                 ),
               ),
               const SizedBox(height: 5),
-              const Text(
+              Text(
                 'Ideas para descubrir Tlaxcala a tu ritmo.',
                 style: TextStyle(fontSize: 13, color: AppColors.muted),
               ),
@@ -293,10 +302,16 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                       setState(() => _mostrarSoloMeGusta = false);
                     },
                     selectedColor: AppColors.accent.withValues(alpha: 0.18),
+                    side: BorderSide(
+                      color: !_mostrarSoloMeGusta
+                          ? AppColors.accent
+                          : AppColors.border,
+                      width: !_mostrarSoloMeGusta ? 1.5 : 1,
+                    ),
                     labelStyle: TextStyle(
                       color: _mostrarSoloMeGusta
                           ? AppColors.muted
-                          : AppColors.primary,
+                          : AppColors.textStrong,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -307,7 +322,7 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                           : Icons.favorite_border_rounded,
                       size: 17,
                       color: _mostrarSoloMeGusta
-                          ? Colors.pinkAccent
+                          ? AppColors.accentLight
                           : AppColors.muted,
                     ),
                     label: const Text('Mis me gusta'),
@@ -326,9 +341,15 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                       setState(() => _mostrarSoloMeGusta = selected);
                     },
                     selectedColor: AppColors.accent.withValues(alpha: 0.18),
+                    side: BorderSide(
+                      color: _mostrarSoloMeGusta
+                          ? AppColors.accent
+                          : AppColors.border,
+                      width: _mostrarSoloMeGusta ? 1.5 : 1,
+                    ),
                     labelStyle: TextStyle(
                       color: _mostrarSoloMeGusta
-                          ? AppColors.primary
+                          ? AppColors.textStrong
                           : AppColors.muted,
                       fontWeight: FontWeight.w700,
                     ),
@@ -494,8 +515,8 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.heroTop, AppColors.navy],
+        gradient: LinearGradient(
+          colors: [AppColors.itineraryTop, AppColors.itineraryBottom],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -525,10 +546,10 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                   color: AppColors.accent.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Text(
+                child: Text(
                   'VIAJES CON HISTORIA',
                   style: TextStyle(
-                    color: AppColors.accentLight,
+                    color: AppColors.itineraryAccent,
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1,
@@ -536,20 +557,20 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                 ),
               ),
               const SizedBox(height: 17),
-              const Text(
+              Text(
                 'Tu próxima aventura\nempieza aquí',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: AppColors.onHero,
                   fontSize: 25,
                   height: 1.15,
                   fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 9),
-              const Text(
+              Text(
                 'Recorre la cultura, naturaleza y tradición de Tlaxcala.',
                 style: TextStyle(
-                  color: AppColors.heroText,
+                  color: AppColors.itineraryText,
                   fontSize: 13,
                   height: 1.45,
                 ),
@@ -566,7 +587,7 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.border),
       ),
@@ -577,11 +598,7 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
           Text(
             mensaje,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 14,
-              height: 1.5,
-              color: AppColors.muted,
-            ),
+            style: TextStyle(fontSize: 14, height: 1.5, color: AppColors.muted),
           ),
         ],
       ),
@@ -643,28 +660,17 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
       child: InkWell(
         onTap: () => _mostrarDetalles(context, itinerario),
         borderRadius: BorderRadius.circular(22),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: AppColors.border),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.06),
-                blurRadius: 18,
-                offset: const Offset(0, 7),
-              ),
-            ],
-          ),
+        child: GlassSurface(
+          borderRadius: BorderRadius.circular(22),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(18),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Color(0xFF175A76), AppColors.navy],
+                    colors: [AppColors.itineraryTop, AppColors.itineraryBottom],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -675,12 +681,12 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.14),
+                        color: AppColors.onHero.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(15),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.map_rounded,
-                        color: Colors.white,
+                        color: AppColors.onHero,
                         size: 26,
                       ),
                     ),
@@ -694,7 +700,7 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                                 ? 'RECORRIDO RECOMENDADO'
                                 : '${dias.length} ${dias.length == 1 ? 'DÍA' : 'DÍAS'} DE RECORRIDO',
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.72),
+                              color: AppColors.onHero.withValues(alpha: 0.72),
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.7,
@@ -705,8 +711,8 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                             nombre,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: AppColors.onHero,
                               fontSize: 18,
                               height: 1.15,
                               fontWeight: FontWeight.w800,
@@ -727,11 +733,11 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                       ),
                       style: IconButton.styleFrom(
                         foregroundColor: isLiked
-                            ? const Color(0xFFFF6B8A)
-                            : Colors.white,
+                            ? AppColors.accentLight
+                            : AppColors.onHero,
                         backgroundColor: isLiked
-                            ? const Color(0xFF482136)
-                            : Colors.white.withValues(alpha: 0.12),
+                            ? AppColors.accent.withValues(alpha: 0.16)
+                            : AppColors.onHero.withValues(alpha: 0.12),
                         shape: const CircleBorder(),
                       ),
                       icon: Icon(
@@ -750,7 +756,7 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                   children: [
                     Text(
                       descripcion,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         height: 1.5,
                         color: AppColors.muted,
@@ -768,7 +774,7 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.access_time_rounded,
                             size: 18,
                             color: AppColors.accentDark,
@@ -777,10 +783,10 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                           Expanded(
                             child: Text(
                               'Duración aproximada: $duracion',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.primary,
+                                color: AppColors.textStrong,
                               ),
                             ),
                           ),
@@ -788,25 +794,25 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                       ),
                     ),
                     const SizedBox(height: 15),
-                    const Text(
+                    Text(
                       'Lugares del recorrido',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
+                        color: AppColors.textStrong,
                       ),
                     ),
                     const SizedBox(height: 7),
                     Text(
                       lugaresTexto,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         height: 1.5,
                         color: AppColors.muted,
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Row(
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         Text(
@@ -858,14 +864,14 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
           child: Container(
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [AppColors.heroTop, AppColors.navy],
+                colors: [AppColors.itineraryTop, AppColors.itineraryBottom],
               ),
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               border: Border.all(
-                color: AppColors.accent.withValues(alpha: 0.24),
+                color: AppColors.accent.withValues(alpha: 0.36),
               ),
             ),
             child: SingleChildScrollView(
@@ -891,15 +897,15 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
-                          color: AppColors.accent.withValues(alpha: 0.14),
+                          color: AppColors.accent.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(15),
                           border: Border.all(
-                            color: AppColors.accent.withValues(alpha: 0.25),
+                            color: AppColors.accent.withValues(alpha: 0.4),
                           ),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.route_rounded,
-                          color: AppColors.accentLight,
+                          color: AppColors.itineraryAccent,
                           size: 25,
                         ),
                       ),
@@ -912,8 +918,8 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                               dias.isEmpty
                                   ? 'RECORRIDO RECOMENDADO'
                                   : '${dias.length} ${dias.length == 1 ? 'DÍA' : 'DÍAS'} DE RECORRIDO',
-                              style: const TextStyle(
-                                color: AppColors.accentLight,
+                              style: TextStyle(
+                                color: AppColors.itineraryAccent,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 0.8,
@@ -924,8 +930,8 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                               nombre,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: AppColors.onHero,
                                 fontSize: 20,
                                 height: 1.15,
                                 fontWeight: FontWeight.w800,
@@ -940,34 +946,34 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.055),
+                      color: AppColors.accent.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(15),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.08),
+                        color: AppColors.accent.withValues(alpha: 0.22),
                       ),
                     ),
                     child: Text(
                       descripcion,
-                      style: const TextStyle(
-                        color: AppColors.heroText,
+                      style: TextStyle(
+                        color: AppColors.itineraryText,
                         fontSize: 13,
                         height: 1.5,
                       ),
                     ),
                   ),
                   const SizedBox(height: 22),
-                  const Row(
+                  Row(
                     children: [
                       Icon(
                         Icons.event_note_rounded,
-                        color: AppColors.accentLight,
+                        color: AppColors.itineraryAccent,
                         size: 19,
                       ),
                       SizedBox(width: 8),
                       Text(
                         'Actividades del recorrido',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: AppColors.onHero,
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
                         ),
@@ -979,14 +985,16 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF111C35),
+                        color: AppColors.heroPanel,
                         borderRadius: BorderRadius.circular(15),
-                        border: Border.all(color: AppColors.heroBorder),
+                        border: Border.all(
+                          color: AppColors.accent.withValues(alpha: 0.34),
+                        ),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Este itinerario aún no tiene actividades registradas.',
                         style: TextStyle(
-                          color: AppColors.heroText,
+                          color: AppColors.itineraryText,
                           fontSize: 13,
                           height: 1.45,
                         ),
@@ -1023,9 +1031,9 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF111C35),
+        color: AppColors.heroPanel,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppColors.heroBorder),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.34)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1039,9 +1047,9 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                   color: AppColors.accent.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(11),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.calendar_today_rounded,
-                  color: AppColors.accentLight,
+                  color: AppColors.itineraryAccent,
                   size: 17,
                 ),
               ),
@@ -1049,8 +1057,8 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
               Expanded(
                 child: Text(
                   nombreDia,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: AppColors.onHero,
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1059,11 +1067,11 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
             ],
           ),
           if (actividades.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 8),
               child: Text(
                 'Sin actividades registradas.',
-                style: TextStyle(color: AppColors.heroText, fontSize: 12),
+                style: TextStyle(color: AppColors.itineraryText, fontSize: 12),
               ),
             )
           else
@@ -1093,8 +1101,8 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                       ),
                       child: Text(
                         '${entry.key + 1}',
-                        style: const TextStyle(
-                          color: AppColors.accentLight,
+                        style: TextStyle(
+                          color: AppColors.itineraryAccent,
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                         ),
@@ -1107,8 +1115,8 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                         children: [
                           Text(
                             titulo,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: AppColors.onHero,
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
                             ),
@@ -1118,8 +1126,8 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                               padding: const EdgeInsets.only(top: 3),
                               child: Text(
                                 detalle,
-                                style: const TextStyle(
-                                  color: AppColors.heroText,
+                                style: TextStyle(
+                                  color: AppColors.itineraryText,
                                   fontSize: 12,
                                   height: 1.4,
                                 ),
@@ -1135,14 +1143,14 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: AppColors.accent.withValues(
-                                    alpha: 0.12,
+                                    alpha: 0.18,
                                   ),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
                                   'Duración: ${_formatearDuracion(minutos.toInt())}',
-                                  style: const TextStyle(
-                                    color: AppColors.accentLight,
+                                  style: TextStyle(
+                                    color: AppColors.itineraryAccent,
                                     fontSize: 10,
                                     fontWeight: FontWeight.w700,
                                   ),

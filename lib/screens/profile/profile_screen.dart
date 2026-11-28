@@ -9,11 +9,13 @@ import '../../services/auth_service.dart';
 import '../../services/biometric_service.dart';
 import '../../models/user_model.dart';
 import '../../styles/app_colors.dart';
+import '../../styles/app_theme_controller.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key, this.onReturn});
+  const ProfileScreen({super.key, this.onReturn, this.onSignOut});
 
   final VoidCallback? onReturn;
+  final VoidCallback? onSignOut;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -76,6 +78,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         setState(() => _isUpdatingSecurity = false);
       }
+    }
+  }
+
+  List<Widget> get _signOutActions => widget.onSignOut == null
+      ? const []
+      : [
+          IconButton(
+            tooltip: 'Cerrar sesión',
+            onPressed: widget.onSignOut,
+            icon: const Icon(Icons.logout_rounded),
+          ),
+        ];
+
+  Future<void> _setLightMode(bool enabled) async {
+    try {
+      await AppThemeController.instance.setLightMode(enabled);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo cambiar el modo de color: $error')),
+      );
     }
   }
 
@@ -226,7 +249,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (user == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Mi perfil')),
+        appBar: AppBar(
+          title: const Text('Mi perfil'),
+          actions: _signOutActions,
+        ),
         body: const Center(child: Text('Debes iniciar sesión.')),
       );
     }
@@ -236,14 +262,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(
-            appBar: AppBar(title: const Text('Mi perfil')),
+            appBar: AppBar(
+              title: const Text('Mi perfil'),
+              actions: _signOutActions,
+            ),
             body: const Center(child: CircularProgressIndicator()),
           );
         }
 
         if (snapshot.hasError) {
           return Scaffold(
-            appBar: AppBar(title: const Text('Mi perfil')),
+            appBar: AppBar(
+              title: const Text('Mi perfil'),
+              actions: _signOutActions,
+            ),
             body: const Center(child: Text('No se pudo cargar el perfil.')),
           );
         }
@@ -258,7 +290,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
         return Scaffold(
-          appBar: AppBar(title: const Text('Mi perfil'), centerTitle: true),
+          appBar: AppBar(
+            title: const Text('Mi perfil'),
+            centerTitle: true,
+            actions: _signOutActions,
+          ),
           body: RefreshIndicator(
             onRefresh: () => _refreshProfile(user.uid),
             child: SingleChildScrollView(
@@ -270,8 +306,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Container(
                     padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [AppColors.heroTop, AppColors.navy],
+                      gradient: LinearGradient(
+                        colors: AppThemeController.instance.isLightMode
+                            ? const [Color(0xFF0C3970), Color(0xFF0879B5)]
+                            : [AppColors.heroTop, AppColors.heroBottom],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -323,13 +361,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                     ),
                                                   )
                                                 : NetworkImage(avatarUrl)
-                                                    as ImageProvider)
+                                                      as ImageProvider)
                                           : null,
                                       child: !hasAvatar
-                                          ? const Icon(
+                                          ? Icon(
                                               Icons.person_rounded,
                                               size: 52,
-                                              color: Colors.white,
+                                              color: AppColors.onHero,
                                             )
                                           : null,
                                     ),
@@ -349,7 +387,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           ),
                                       padding: EdgeInsets.zero,
                                       icon: _uploadingImage
-                                          ? const SizedBox(
+                                          ? SizedBox(
                                               width: 17,
                                               height: 17,
                                               child: CircularProgressIndicator(
@@ -357,7 +395,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 color: AppColors.navy,
                                               ),
                                             )
-                                          : const Icon(
+                                          : Icon(
                                               Icons.camera_alt_rounded,
                                               color: AppColors.navy,
                                               size: 19,
@@ -372,8 +410,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: AppColors.onHero,
                                   fontSize: 22,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -384,8 +422,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: AppColors.heroText,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.88),
                                   fontSize: 13,
                                 ),
                               ),
@@ -395,7 +433,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ? null
                                     : _changePhoto,
                                 style: TextButton.styleFrom(
-                                  foregroundColor: Colors.white,
+                                  foregroundColor: AppColors.onHero,
                                 ),
                                 icon: const Icon(Icons.photo_library_outlined),
                                 label: const Text('Cambiar foto de perfil'),
@@ -407,28 +445,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 26),
-                  const Text(
+                  Text(
                     'Información de la cuenta',
                     style: TextStyle(
-                      color: AppColors.primary,
+                      color: AppColors.textStrong,
                       fontSize: 19,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.border),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.04),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
+                  _buildProfileCard(
                     child: Column(
                       children: [
                         ListTile(
@@ -445,12 +471,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               color: AppColors.accent.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(13),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.person_outline_rounded,
                               color: AppColors.accentDark,
                             ),
                           ),
-                          title: const Text(
+                          title: Text(
                             'Nombre de usuario',
                             style: TextStyle(
                               color: AppColors.muted,
@@ -461,8 +487,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(
                               name,
-                              style: const TextStyle(
-                                color: AppColors.primary,
+                              style: TextStyle(
+                                color: AppColors.textStrong,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -472,7 +498,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             onPressed: _savingName
                                 ? null
                                 : () => _changeName(name),
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.edit_outlined,
                               color: AppColors.accentDark,
                             ),
@@ -495,12 +521,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               color: AppColors.accent.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(13),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.email_outlined,
                               color: AppColors.accentDark,
                             ),
                           ),
-                          title: const Text(
+                          title: Text(
                             'Correo electrónico',
                             style: TextStyle(
                               color: AppColors.muted,
@@ -511,8 +537,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(
                               email,
-                              style: const TextStyle(
-                                color: AppColors.primary,
+                              style: TextStyle(
+                                color: AppColors.textStrong,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -537,7 +563,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 26),
+                  Text(
+                    'Apariencia',
+                    style: TextStyle(
+                      color: AppColors.textStrong,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildProfileCard(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: SwitchListTile.adaptive(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                        ),
+                        secondary: Icon(
+                          AppThemeController.instance.isLightMode
+                              ? Icons.light_mode_rounded
+                              : Icons.dark_mode_outlined,
+                          color: AppColors.accentLight,
+                        ),
+                        title: const Text('Modo claro'),
+                        subtitle: const Text(
+                          'Cambia la luz de las superficies sin alterar la marca',
+                        ),
+                        value: AppThemeController.instance.isLightMode,
+                        onChanged: _setLightMode,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
                   SizedBox(
                     height: 52,
                     child: OutlinedButton.icon(
@@ -547,7 +605,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       label: const Text('Regresar al inicio'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: AppColors.inputBorder),
+                        side: BorderSide(color: AppColors.inputBorder),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -560,6 +618,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildProfileCard({required Widget child}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.profileSurface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.profileBorder, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.navy.withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: child,
     );
   }
 }

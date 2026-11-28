@@ -3,32 +3,28 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
 abstract final class AppTextStyles {
-  static const appBarTitle = TextStyle(
-    color: AppColors.surface,
+  static TextStyle get appBarTitle => TextStyle(
+    color: AppColors.onHeader,
     fontSize: 20,
     fontWeight: FontWeight.w700,
   );
 
-  static const headline = TextStyle(
-    color: AppColors.primary,
-    fontWeight: FontWeight.w800,
-  );
+  static TextStyle get headline =>
+      TextStyle(color: AppColors.textStrong, fontWeight: FontWeight.w800);
 
-  static const title = TextStyle(
+  static TextStyle get title =>
+      TextStyle(color: AppColors.textStrong, fontWeight: FontWeight.w600);
+
+  static TextStyle get body => TextStyle(color: AppColors.text, height: 1.5);
+
+  static TextStyle get sectionTitle => TextStyle(
     color: AppColors.textStrong,
-    fontWeight: FontWeight.w600,
-  );
-
-  static const body = TextStyle(color: AppColors.text, height: 1.5);
-
-  static const sectionTitle = TextStyle(
-    color: AppColors.primary,
     fontSize: 20,
     fontWeight: FontWeight.w800,
   );
 
-  static const cardTitle = TextStyle(
-    color: AppColors.primary,
+  static TextStyle get cardTitle => TextStyle(
+    color: AppColors.textStrong,
     fontSize: 15,
     fontWeight: FontWeight.w800,
   );
