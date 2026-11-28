@@ -3,18 +3,27 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/biometric_service.dart';
 import '../../styles/app_colors.dart';
 
 class ItinerariosScreen extends StatefulWidget {
-  const ItinerariosScreen({super.key, this.isAdmin = false});
+  const ItinerariosScreen({
+    super.key,
+    this.isAdmin = false,
+    this.isActive = true,
+  });
 
   final bool isAdmin;
+  final bool isActive;
 
   @override
   State<ItinerariosScreen> createState() => _ItinerariosScreenState();
 }
 
 class _ItinerariosScreenState extends State<ItinerariosScreen> {
+  bool _isAuthorized = false;
+  bool _isChecking = false;
+  int _securityCheckGeneration = 0;
   bool _mostrarSoloMeGusta = false;
   final Map<String, Map<String, bool>> _meGustaPendiente = {};
   late final Stream<QuerySnapshot> _streamItinerarios = FirebaseFirestore
@@ -23,6 +32,67 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
       .snapshots();
   final Map<String, Stream<QuerySnapshot<Map<String, dynamic>>>>
   _streamsMeGusta = {};
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isActive) {
+      _checkSecurity();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ItinerariosScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isActive == widget.isActive) return;
+
+    if (widget.isActive) {
+      _checkSecurity();
+    } else {
+      _securityCheckGeneration++;
+      setState(() {
+        _isAuthorized = false;
+        _isChecking = false;
+      });
+    }
+  }
+
+  Future<void> _checkSecurity() async {
+    if (!widget.isActive) return;
+
+    final generation = ++_securityCheckGeneration;
+    setState(() => _isChecking = true);
+
+    try {
+      final lockEnabled = await BiometricService.isLockEnabled();
+      final authenticated =
+          !lockEnabled || await BiometricService.authenticate();
+      if (!mounted ||
+          !widget.isActive ||
+          generation != _securityCheckGeneration) {
+        return;
+      }
+
+      setState(() {
+        _isAuthorized = authenticated;
+        _isChecking = false;
+      });
+    } catch (error) {
+      if (!mounted ||
+          !widget.isActive ||
+          generation != _securityCheckGeneration) {
+        return;
+      }
+
+      setState(() {
+        _isAuthorized = false;
+        _isChecking = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo verificar el bloqueo: $error')),
+      );
+    }
+  }
 
   // Conexión con la colección global utilizada por Tlax.Go WEB.
   Stream<QuerySnapshot<Map<String, dynamic>>> _obtenerMeGusta(String uid) {
@@ -127,6 +197,49 @@ class _ItinerariosScreenState extends State<ItinerariosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.isActive) {
+      return const SizedBox.shrink();
+    }
+
+    if (_isChecking) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (!_isAuthorized) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Itinerario Protegido')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.lock_outline, size: 72, color: Colors.grey),
+                const SizedBox(height: 16),
+                const Text(
+                  'Este itinerario está protegido',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Usa tu huella digital o el PIN de tu dispositivo para acceder.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: _checkSecurity,
+                  icon: const Icon(Icons.fingerprint),
+                  label: const Text('Desbloquear'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(

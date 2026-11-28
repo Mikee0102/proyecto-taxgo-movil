@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
+import 'biometric_service.dart';
 
 class AuthService {
   // 1. Instancia estática privada de la clase
@@ -194,6 +195,7 @@ class AuthService {
 
   // 5. Cerrar sesión
   Future<void> signOut() async {
+    BiometricService.clearSession();
     await _googleSignIn.signOut();
     await _auth.signOut();
   }

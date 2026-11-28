@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../services/auth_service.dart';
+import '../../services/biometric_service.dart';
 import '../../models/user_model.dart';
 import '../../styles/app_colors.dart';
 
@@ -21,8 +22,62 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _savingName = false;
   bool _uploadingImage = false;
+  bool _isItineraryLocked = false;
+  bool _canUseBiometrics = false;
+  bool _isUpdatingSecurity = false;
 
   final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSecuritySettings();
+  }
+
+  Future<void> _loadSecuritySettings() async {
+    try {
+      final available = await BiometricService.isBiometricAvailable();
+      final enabled = await BiometricService.isLockEnabled();
+      if (!mounted) return;
+
+      setState(() {
+        _canUseBiometrics = available;
+        _isItineraryLocked = enabled;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo cargar el bloqueo: $error')),
+      );
+    }
+  }
+
+  Future<void> _setItineraryLock(bool newValue) async {
+    setState(() => _isUpdatingSecurity = true);
+    try {
+      final success = await BiometricService.setLockEnabled(newValue);
+      if (!mounted) return;
+
+      if (success) {
+        setState(() => _isItineraryLocked = newValue);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo confirmar la autenticación.'),
+          ),
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo actualizar el bloqueo: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isUpdatingSecurity = false);
+      }
+    }
+  }
 
   Future<void> _refreshProfile(String uid) async {
     try {
@@ -463,6 +518,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           ),
                         ),
+                        if (_canUseBiometrics) ...[
+                          Divider(height: 1, color: AppColors.border),
+                          SwitchListTile(
+                            title: const Text(
+                              'Bloquear itinerarios con huella',
+                            ),
+                            subtitle: const Text(
+                              'Solicitar huella o PIN al abrir tus rutas guardadas',
+                            ),
+                            secondary: const Icon(Icons.fingerprint),
+                            value: _isItineraryLocked,
+                            onChanged: _isUpdatingSecurity
+                                ? null
+                                : _setItineraryLock,
+                          ),
+                        ],
                       ],
                     ),
                   ),
