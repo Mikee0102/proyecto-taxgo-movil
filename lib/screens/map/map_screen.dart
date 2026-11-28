@@ -69,7 +69,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     try {
       final results = await _connectivity.checkConnectivity();
       if (!mounted) return;
-      _updateConnectivity(results, notify: false);
+      _updateConnectivity(results);
     } on PlatformException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -81,13 +81,17 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   void _handleConnectivityChanged(List<ConnectivityResult> results) {
+    final wasConnected = _hasNetworkConnection;
     _updateConnectivity(results);
+    final isConnected = results.any(
+      (result) => result != ConnectivityResult.none,
+    );
+    if (wasConnected == false && isConnected) {
+      unawaited(_loadPlacesFromOverpass());
+    }
   }
 
-  void _updateConnectivity(
-    List<ConnectivityResult> results, {
-    bool notify = true,
-  }) {
+  void _updateConnectivity(List<ConnectivityResult> results) {
     final isConnected = results.any(
       (result) => result != ConnectivityResult.none,
     );
@@ -95,26 +99,20 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     if (previous == isConnected) return;
 
     setState(() => _hasNetworkConnection = isConnected);
-
-    if (!notify || previous == null) return;
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            isConnected
-                ? 'Conexión restablecida.'
-                : 'Sin conexión. El mapa puede no cargarse.',
-          ),
-        ),
-      );
   }
 
   Future<void> _loadPlacesFromOverpass() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoadingPlaces = true;
     });
+
+    final cachedPlaces = await PlacesService.loadCachedPlaces();
+    if (!mounted) return;
+    if (cachedPlaces.isNotEmpty) {
+      setState(() => _allPlaces = cachedPlaces);
+    }
 
     final places = await PlacesService.fetchPlacesFromOverpass();
 
@@ -240,6 +238,24 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         .doc(place.id);
     final esFavorito = _favoritos.contains(place.id);
 
+    setState(() {
+      if (esFavorito) {
+        _favoritos.remove(place.id);
+      } else {
+        _favoritos.add(place.id);
+      }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          esFavorito
+              ? '${place.name} se quitó de lugares favoritos.'
+              : '${place.name} se agregó a lugares favoritos.',
+        ),
+      ),
+    );
+
     try {
       if (esFavorito) {
         await referencia.delete();
@@ -255,26 +271,15 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       }
 
       if (!mounted) return;
-
-      setState(() {
-        if (esFavorito) {
-          _favoritos.remove(place.id);
-        } else {
-          _favoritos.add(place.id);
-        }
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            esFavorito
-                ? '${place.name} se quitó de lugares favoritos'
-                : '${place.name} se agregó a lugares favoritos',
-          ),
-        ),
-      );
     } catch (error) {
       if (!mounted) return;
+      setState(() {
+        if (esFavorito) {
+          _favoritos.add(place.id);
+        } else {
+          _favoritos.remove(place.id);
+        }
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('No se pudo actualizar el lugar favorito: $error'),
