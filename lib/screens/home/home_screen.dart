@@ -76,7 +76,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 onRefresh: () => _refreshHome(user.uid),
               ),
               const MapScreen(),
-              ItinerariosScreen(isAdmin: role == 'admin'),
+              ItinerariosScreen(
+                isAdmin: role == 'admin',
+                isActive: _selectedIndex == 2,
+              ),
               ProfileScreen(onReturn: () => setState(() => _selectedIndex = 0)),
             ],
           ),
